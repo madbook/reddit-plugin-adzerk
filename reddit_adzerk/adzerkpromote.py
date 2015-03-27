@@ -26,6 +26,7 @@ from r2.lib.utils import UrlParser
 from r2.lib.validator import (
     validate,
     VPrintable,
+    VBoolean,
 )
 
 from r2.models import (
