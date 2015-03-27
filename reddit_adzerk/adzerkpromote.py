@@ -253,7 +253,7 @@ def update_flight(link, campaign, az_campaign):
                 'SiteId': g.az_selfserve_site_id,
                 'IsExclude': False,
             })
-        else if campaign.platform == 'mobile':
+        elif campaign.platform == 'mobile':
             siteZones.append({
                 'SiteId': g.az_selfserve_mobile_web_site_id,
                 'IsExclude': False,
