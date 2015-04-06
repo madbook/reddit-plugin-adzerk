@@ -236,11 +236,11 @@ def update_flight(link, campaign, az_campaign):
         })
 
     if campaign.mobile_os:
-        deviceQueries = ['($device.os = "%s")' % os
+        deviceQueries = ['($device.os contains "%s")' % os
                          for os in campaign.mobile_os]
 
         if campaign.platform == "all":
-            deviceQueries.append('($device.formFactor = "desktop")')
+            deviceQueries.append('($device.formFactor contains "desktop")')
         
         customTargeting = ' or '.join(deviceQueries)
         d.update({
