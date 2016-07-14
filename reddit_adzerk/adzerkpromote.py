@@ -1207,6 +1207,9 @@ def properties_from_context(context, site, exclude=None):
             if key in properties:
                 del properties[key]
 
+    if getattr(request, "fullurl", ""):
+        properties["full_url"] = request.fullurl
+
     return properties
 
 
