@@ -150,12 +150,11 @@ class AdEventQueue(EventQueue):
         # keywords are case insensitive, normalize and sort them
         # for easier equality testing.
         keywords = sorted(k.lower() for k in keywords)
-        matched_keywords = sorted(k.lower() for k in matched_keywords)
-
         event.add("keywords", keywords)
 
         # don't send empty arrays.
         if matched_keywords:
+            matched_keywords = sorted(k.lower() for k in matched_keywords)
             event.add("matched_keywords", matched_keywords)
 
         if not isinstance(subreddit, FakeSubreddit):
