@@ -97,7 +97,6 @@ GOAL_TYPE_BY_COST_BASIS = {
 }
 
 FREQUENCY_CAP_DURATION_HOURS = 24
-PRIORITIES_BY_ID = {v:k for k, v in g.az_selfserve_priorities.iteritems()}
 
 LOID_CREATED_COOKIE = "loidcreated"
 
@@ -1134,7 +1133,9 @@ def adzerk_request(
         moat_query = body.get('moatQuery', None)
 
         if priority_id:
-            priority = PRIORITIES_BY_ID.get(priority_id, "unknown (%s)" % priority_id)
+            for k, v in g.az_selfserve_priorities.iteritems():
+                if priority_id == v:
+                    priority = k
 
         g.ad_events.ad_response(
             keywords=keywords,
