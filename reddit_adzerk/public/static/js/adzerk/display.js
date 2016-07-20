@@ -40,6 +40,12 @@
     properties.percentage = Math.round(Math.random() * 100);
   }
 
+  // Ensure all property values are URI encoded since
+  // ados doesn't handle this properly.
+  for (var key in properties) {
+    properties[key] = encodeURIComponent(properties[key]);
+  }
+
   // Display a random image in lieu of an ad for certain keywords.
   // This reduces the number of ad requests for low-fill targets.
   if (global.SKIP_AD_PROBABILITY && Math.random() <= global.SKIP_AD_PROBABILITY) {
