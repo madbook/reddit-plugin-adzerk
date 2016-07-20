@@ -1185,10 +1185,12 @@ def properties_from_context(context, site, exclude=None):
         age = context.user._age
     elif context.loid:
         try:
-            loid_created = datetime.datetime.strptime(
-                context.loid.created,
-                "%Y-%m-%dT%H:%M:%S.%fZ"
-            )
+            loid_created = context.loid.created
+            if not isinstance(loid_created, datetime.datetime):
+                loid_created = datetime.datetime.strptime(
+                    context.loid.created,
+                    "%Y-%m-%dT%H:%M:%S.%fZ"
+                )
             loid_created = loid_created.replace(tzinfo=g.tz)
             now = datetime.datetime.now(g.tz)
             age = now - loid_created
