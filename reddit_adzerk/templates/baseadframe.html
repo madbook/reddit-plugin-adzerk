@@ -33,7 +33,7 @@
     ados.run = ados.run || [];
 
     var script = document.createElement('script');
-    script.src = '//s.zkcdn.net/ados.js';
+    script.src = '//s.zkcdn.net/ados.js?cb=' + ${scriptsafe_dumps(g.short_version)};
     script.async = true;
     document.getElementsByTagName('head')[0].appendChild(script);
   </script>
