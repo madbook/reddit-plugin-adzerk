@@ -37,6 +37,10 @@ class Ads(BaseAds):
         if link:
             properties["page"] = link._fullname
 
+        interests = [w[2:] for w in keywords if w.startswith('a.')]
+        if len(interests) > 0:
+            properties["interests"] = interests
+
         data = {
             "keywords": list(keywords),
             "properties": properties,
