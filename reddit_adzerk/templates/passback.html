@@ -8,7 +8,36 @@
 </head>
 <body>
   <script>
-    window.top.postMessage({flightId: ${scriptsafe_dumps(thing.passback_id)}}, '*');
+    var adosWindow = window;
+    var PASSBACK_ID = ${scriptsafe_dumps(thing.passback_id)};
+
+    try {
+      while (!adosWindow.divName) {
+        // jshint eqeqeq: false
+        // cannot compare window objects with `===`
+        if (adosWindow == adosWindow.parent) {
+          break;
+        }
+
+        adosWindow = adosWindow.parent
+      }
+
+      if (adosWindow.divName) {
+        (adosWindow.ados_passback || adosWindow.parent.ados_passback)(adosWindow.divName, PASSBACK_ID);
+      }
+    } catch (e) {
+      var windows = []
+      var currentWindow = window;
+
+      while (currentWindow != currentWindow.parent) {
+          currentWindow = currentWindow.parent;
+          windows.push(currentWindow);
+      }
+
+      for (var i = 0; i < windows.length; i++) {
+        windows[i].postMessage({flightId: PASSBACK_ID}, '*')
+      }
+    }
   </script>
 </body>
 </html>
