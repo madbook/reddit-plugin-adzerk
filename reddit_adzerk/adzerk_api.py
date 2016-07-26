@@ -273,6 +273,7 @@ class Flight(Base):
         Field('DailyCapAmount', optional=True),
         Field('LifetimeCapAmount', optional=True),
         Field('CapType', optional=True),
+        Field('BehavioralTargeting', optional=True),
     )
 
     @classmethod
