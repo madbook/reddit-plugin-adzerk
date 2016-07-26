@@ -473,6 +473,16 @@ def update_flight(link, campaign, triggered_by=None):
             'RateType': RATE_TYPE_BY_COST_BASIS[campaign.cost_basis], 
         })
 
+        stop_showing_onclick = campaign.cost_basis == promo.PROMOTE_COST_BASIS.cpc
+
+        d.update({
+            "BehavioralTargeting": {
+                "onClick": {
+                    "stopShowingAdsFromFlight": stop_showing_onclick,
+                },
+            },
+        })
+
         if campaign.cost_basis == promo.PROMOTE_COST_BASIS.fixed_cpm:
             d['Impressions'] = campaign.impressions + ADZERK_IMPRESSION_BUMP
         else:
