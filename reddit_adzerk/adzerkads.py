@@ -25,7 +25,8 @@ class Ads(BaseAds):
         keywords = promote.keywords_from_context(
             c.user, c.site,
             include_subscriptions=False,
-            displayed_things=displayed_things
+            displayed_things=displayed_things,
+            block_programmatic=getattr(link, 'block_programmatic', False)
         )
 
         properties = adzerkpromote.properties_from_context(
