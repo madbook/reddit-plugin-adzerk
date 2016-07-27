@@ -7,6 +7,7 @@
   var SITE = global.ADS_GLOBALS.site;
   var PLACEMENT_TYPES = {
     main: 5,
+    top: 5,
     sponsorship: 8,
   };
 
@@ -33,6 +34,27 @@
 
   var config = getConfig();
   var properties = config.properties || {};
+
+  // If double sidebar experiment, have the top ad not call Adzerk
+  if (properties.double_sidebar && properties.frame_id == 'ad_main_top') {
+    var PLACEMENT = 'top';
+    // Change the id of the ad so ados knows what div to insert to
+    $('#main').attr('id', 'top');
+    global.onload = function() {
+      var adContent = global.parent.frames.ad_main.ados_results;
+      global.name = 'ad-' + PLACEMENT;
+      // Grabs data from the main frame and `eval`s it. Unfortunately
+      // there isn't a great way to pass this data across frames
+      // as it's more complicated than json and would normally be
+      // loaded as a script tag, hence the `eval`
+      eval(adContent[PLACEMENT]);
+    };
+
+    ados.run.push(function() {
+      ados_loadDiv(PLACEMENT);
+    });
+    return;
+  }
 
   // Allows the yield manager to target a percentage of users
   // with specific SSPs.
@@ -73,6 +95,14 @@
 
       return;
     }
+  }
+
+  // Reconfigure placements if it's the double sidebar experiment
+  if (properties.double_sidebar) {
+    PLACEMENT_TYPES = {
+      main: 5,
+      top: 5,
+    };
   }
 
   ados.run.push(function() {
@@ -120,6 +150,11 @@
     var load = setInterval(function() {
       if (global.ados_results) {
         clearInterval(load);
+
+        // Load top ad if exists
+        if (global.ados_results.top && global.postMessage) {
+          global.parent.postMessage('ados.createAdFrame:top', config.origin);
+        }
 
         for (var key in global.ados_ads) {
           if (!global.ados_ads.hasOwnProperty(key)) {

@@ -4,7 +4,6 @@
   global.r = global.r || {};
 
   r.adzerk = {
-
     createSponsorshipAdFrame: function(overrideSrc) {
       var $iframe = $('<iframe>');
 
@@ -20,7 +19,6 @@
         .empty()
         .append($iframe);
     },
-
   };
 
   $(global).on('message', function(e) {
@@ -35,7 +33,7 @@
     if (typeof data === 'string') {
       var message = data.split(':');
 
-      if (message[0] == 'ados.createAdFrame') {
+      if (message[0] == 'ados.createAdFrame' && message[1] == 'sponsorship') {
         r.adzerk.createSponsorshipAdFrame();
       }
     }

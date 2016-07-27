@@ -6,6 +6,7 @@ from pylons import tmpl_context as c
 from pylons import app_globals as g
 from pylons import request
 
+from r2.config import feature
 from r2.controllers import add_controller
 from r2.controllers.reddit_base import (
     MinimalController,
@@ -19,11 +20,12 @@ from r2.models import Subreddit
 from reddit_adzerk import adzerkpromote
 
 class Ads(BaseAds):
-    def __init__(self, displayed_things=[], link=None):
+    def __init__(self, frame_id="ad_main", displayed_things=[], link=None):
         BaseAds.__init__(self)
 
         keywords = promote.keywords_from_context(
             c.user, c.site,
+            frame_id=frame_id,
             include_subscriptions=False,
             displayed_things=displayed_things,
             block_programmatic=getattr(link, 'block_programmatic', False)
@@ -57,9 +59,9 @@ class Ads(BaseAds):
 
             if percentage is not None:
                 data["properties"]["percentage"] = percentage
-
         self.ad_url = g.adzerk_url.format(data=json.dumps(data))
-        self.frame_id = "ad_main"
+        self.frame_id = frame_id
+        self.frame_class = "ad300x250"
 
 
 class BaseAdFrame(Templated):
