@@ -17,14 +17,6 @@
       margin: 0;
     }
 
-    .discuss-ad {
-      color: #369;
-      display: block;
-      font-family: verdana, arial, sans-serif;
-      font-size: small;
-      text-decoration: none;
-      text-align: center;
-    }
   </style>
   <script>
     window.ADS_GLOBALS = ${scriptsafe_dumps(config.get_js_config())};
@@ -45,29 +37,3 @@ ${self.content()}
 </html>
 
 <%def name="content()"></%def>
-<%def name="discuss(frame, placement)">
-  <script>
-    (function() {
-      var timeout = setInterval(function() {
-        var frame = ${scriptsafe_dumps(frame)};
-        var placement = ${scriptsafe_dumps(placement)};
-
-        if (window.parent.frames[frame].ados_ads &&
-            window.parent.frames[frame].ados_ads[placement]) {
-          clearInterval(timeout);
-
-          var id = window.parent.frames[frame].ados_ads[placement].id;
-          var discussLink = document.createElement('a');
-          var adzerkPreview = 'https://preview.adzerk.com/preview/' + id;
-
-          discussLink.className = 'discuss-ad';
-          discussLink.target = 'top';
-          discussLink.href = '//reddit.com/r/ads/submit?url=' + encodeURIComponent(adzerkPreview);
-          discussLink.innerHTML = 'discuss this ad on reddit';
-
-          document.body.appendChild(discussLink);
-        }
-      }, 50);
-    })();
-  </script>
-</%def>
