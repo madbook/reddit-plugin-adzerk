@@ -1132,7 +1132,12 @@ def adzerk_request(
         ecpm = body.get('ecpm', None)
         moat_query = body.get('moatQuery', None)
 
-        if priority_id:
+        if priority_id is not None:
+            try:
+                priority_id = int(priority_id)
+            except ValueError:
+                pass
+
             for k, v in g.az_selfserve_priorities.iteritems():
                 if priority_id == v:
                     priority = k
