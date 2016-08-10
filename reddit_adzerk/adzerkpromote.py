@@ -1106,7 +1106,7 @@ def adzerk_request(
                 keywords=keywords,
                 platform=platform,
                 placement_name=placement_name,
-                placement_type=AD_TYPE_FRIENDLY_NAMES[ad_type],
+                placement_type="adserver_ad",
                 ad_id=ad_id,
                 impression_id=impression_id,
                 matched_keywords=matched_keywords,
@@ -1135,7 +1135,8 @@ def adzerk_request(
         priority_id = body.get('priorityId', None)
         # default to leaderboard since old creatives will
         # always be a leaderboard, but may not have an ad type defined
-        ad_type = body.get('adType', LEADERBOARD_AD_TYPE)
+        ad_type = int(body.get('adType', LEADERBOARD_AD_TYPE))
+        placement_type = AD_TYPE_FRIENDLY_NAMES.get(ad_type, "unknown type (%d)" % ad_type)
         ecpm = body.get('ecpm', None)
         moat_query = body.get('moatQuery', None)
 
@@ -1153,7 +1154,7 @@ def adzerk_request(
             keywords=keywords,
             platform=platform,
             placement_name=placement_name,
-            placement_type=AD_TYPE_FRIENDLY_NAMES[ad_type],
+            placement_type=placement_type,
             ad_id=ad_id,
             impression_id=impression_id,
             matched_keywords=matched_keywords,
