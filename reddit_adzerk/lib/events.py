@@ -94,7 +94,7 @@ class AdEventQueue(EventQueue):
             keywords,
             platform,
             placement_name,
-            placement_types,
+            placement_type,
             ad_id,
             impression_id,
             matched_keywords,
@@ -113,7 +113,7 @@ class AdEventQueue(EventQueue):
         keywords: Array of keywords used to select the ad.
         platform: The platform the ad was requested for.
         placement_name: The identifier of the placement.
-        placement_types: Array of placements types.
+        placement_type: The type of placement the ad is.
         ad_id: Unique id of the ad response.
         impression_id: Unique id of the impression.
         matched_keywords: An array of the keywords which matched for the ad.
@@ -136,7 +136,7 @@ class AdEventQueue(EventQueue):
 
         event.add("platform", platform)
         event.add("placement_name", placement_name)
-        event.add("placement_types", placement_types)
+        event.add("placement_type", placement_type)
         event.add("ad_id", ad_id)
         event.add("impression_id",
                   impression_id, kind=FieldKind.HIGH_CARDINALITY)

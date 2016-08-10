@@ -72,6 +72,10 @@ ADZERK_IMPRESSION_BUMP = 500    # add extra impressions to the number we
                                 # request from adzerk in case their count
                                 # is lower than our internal traffic tracking
 
+AD_TYPE_FRIENDLY_NAMES = {
+    LEADERBOARD_AD_TYPE: "sponsored_headline",
+}
+
 DELCHARS = ''.join(c for c in map(chr, range(256)) if not (c.isalnum() or c.isspace()))
 
 FREQ_CAP_TYPE = Enum(None, "hour", "day")
@@ -129,6 +133,7 @@ def render_link(link):
         "target": "",
         "ecpm": "{{ad.ecpm}}",
         "priorityId": "{{ad.flight.priorityId}}",
+        "adType": "{{ad.creative.adType}}"
     }
 
     if getattr(link, "moat_tracking", False):
@@ -1005,7 +1010,7 @@ def adzerk_request(
             keywords=keywords,
             platform=platform,
             placement_name=placement["divName"],
-            placement_types=placement["adTypes"],
+            placement_types=[AD_TYPE_FRIENDLY_NAMES[a] for a in placement["adTypes"]],
             is_refresh=is_refresh,
             subreddit=c.site,
             request=request,
@@ -1101,7 +1106,7 @@ def adzerk_request(
                 keywords=keywords,
                 platform=platform,
                 placement_name=placement_name,
-                placement_types=placement["adTypes"],
+                placement_type=AD_TYPE_FRIENDLY_NAMES[ad_type],
                 ad_id=ad_id,
                 impression_id=impression_id,
                 matched_keywords=matched_keywords,
@@ -1128,6 +1133,9 @@ def adzerk_request(
         target = body['target']
         priority = None
         priority_id = body.get('priorityId', None)
+        # default to leaderboard since old creatives will
+        # always be a leaderboard, but may not have an ad type defined
+        ad_type = body.get('adType', LEADERBOARD_AD_TYPE)
         ecpm = body.get('ecpm', None)
         moat_query = body.get('moatQuery', None)
 
@@ -1145,7 +1153,7 @@ def adzerk_request(
             keywords=keywords,
             platform=platform,
             placement_name=placement_name,
-            placement_types=placement["adTypes"],
+            placement_type=AD_TYPE_FRIENDLY_NAMES[ad_type],
             ad_id=ad_id,
             impression_id=impression_id,
             matched_keywords=matched_keywords,
