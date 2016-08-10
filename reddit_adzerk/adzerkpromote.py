@@ -44,6 +44,7 @@ from r2.lib.validator import (
     VPrintable,
     VBoolean,
     VOneOf,
+    VList,
 )
 
 from r2.models import (
@@ -936,23 +937,21 @@ class AdserverResponse(object):
 
 
 def adzerk_request(
-    keywords, properties, user_id,
-    num_placements=1,
+    keywords, properties, user_id, placement_names,
     timeout=1.5,
     platform="desktop",
     is_refresh=False,
     referrer=None,
 ):
     placements = []
-    divs = ["div%s" % i for i in xrange(num_placements)]
     subreddit = None
 
     if isinstance(c.site, Subreddit) and not c.default_sr:
         subreddit = c.site.name
 
-    for div in divs:
+    for placement_name in placement_names:
         placement = {
-          "divName": div,
+          "divName": placement_name,
           "networkId": g.az_selfserve_network_id,
           "siteId": g.az_selfserve_site_ids[platform],
           "adTypes": [LEADERBOARD_AD_TYPE],
@@ -1053,16 +1052,16 @@ def adzerk_request(
     if not decisions:
         return None
 
-    placements_by_div = {placement["divName"]: placement
+    placements_by_name = {placement["divName"]: placement
         for placement in placements}
 
     res = []
-    for div in divs:
-        decision = decisions[div]
+    for placement_name in placement_names:
+        decision = decisions[placement_name]
         if not decision:
             continue
 
-        placement = placements_by_div[div]
+        placement = placements_by_name[placement_name]
         ad_id = decision['adId']
         pricing = decision.get("pricing", {})
         revenue = pricing.get("revenue")
@@ -1101,7 +1100,7 @@ def adzerk_request(
             g.ad_events.ad_response(
                 keywords=keywords,
                 platform=platform,
-                placement_name=div,
+                placement_name=placement_name,
                 placement_types=placement["adTypes"],
                 ad_id=ad_id,
                 impression_id=impression_id,
@@ -1145,7 +1144,7 @@ def adzerk_request(
         g.ad_events.ad_response(
             keywords=keywords,
             platform=platform,
-            placement_name=div,
+            placement_name=placement_name,
             placement_types=placement["adTypes"],
             ad_id=ad_id,
             impression_id=impression_id,
@@ -1246,6 +1245,7 @@ class AdzerkApiController(api.ApiController):
         ], default=None),
         loid=nop('loid', None),
         is_refresh=VBoolean("is_refresh", default=False),
+        placements=VList("placements"),
         displayed_things=VPrintable("dt", max_length=200),
         referrer=VPrintable("referrer", max_length=2048),
     )
@@ -1257,6 +1257,7 @@ class AdzerkApiController(api.ApiController):
         platform,
         loid,
         is_refresh,
+        placements,
         displayed_things,
         referrer,
     ):
@@ -1289,6 +1290,7 @@ class AdzerkApiController(api.ApiController):
             keywords=keywords,
             properties=properties,
             user_id=self.get_uid(loid),
+            placement_names=placements,
             platform=platform,
             is_refresh=is_refresh,
             referrer=referrer,
