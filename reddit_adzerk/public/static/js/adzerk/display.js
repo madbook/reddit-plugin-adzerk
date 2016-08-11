@@ -7,7 +7,6 @@
   var SITE = global.ADS_GLOBALS.site;
   var PLACEMENT_TYPES = {
     main: 5,
-    top: 5,
     sponsorship: 8,
   };
 
