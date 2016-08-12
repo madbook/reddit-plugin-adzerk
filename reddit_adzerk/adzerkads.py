@@ -25,11 +25,13 @@ class Ads(BaseAds):
 
         keywords = promote.keywords_from_context(
             c.user, c.site,
-            frame_id=frame_id,
             include_subscriptions=False,
             displayed_things=displayed_things,
             block_programmatic=getattr(link, 'block_programmatic', False)
         )
+        if promote.ads_feature_enabled("double_sidebar"):
+            keywords.add("exp.double_sidebar.test_group")
+            keywords.add("exp.double_sidebar.ad_type.%s" % frame_id)
 
         properties = adzerkpromote.properties_from_context(
             context=c,

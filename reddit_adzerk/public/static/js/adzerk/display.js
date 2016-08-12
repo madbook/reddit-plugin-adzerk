@@ -33,7 +33,6 @@
 
   var config = getConfig();
   var properties = config.properties || {};
-
   // If double sidebar experiment, have the top ad not call Adzerk
   if (properties.double_sidebar && properties.frame_id == 'ad_main_top') {
     var PLACEMENT = 'top';
@@ -130,8 +129,12 @@
     } else {
       for (var type in PLACEMENT_TYPES) {
         placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
+        if(properties.double_sidebar && type === 'top'){
+          properties.frame_id = 'ad_main_top';
+        } else {
+          properties.frame_id = 'ad_main';
+        }
         placement.setProperties(properties);
-
         request.placement_types.push(PLACEMENT_TYPES[type]);
       }
     }
