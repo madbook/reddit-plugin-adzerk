@@ -116,6 +116,9 @@ class AdXController(MinimalController):
     def GET_passback(self, passbacks):
         c.allow_framing = True
 
+        if not passbacks:
+            self.abort404()
+
         try:
             passback_ids = [int(p) for p in passbacks]
         except ValueError:
