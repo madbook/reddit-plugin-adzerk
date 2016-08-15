@@ -1236,6 +1236,9 @@ def properties_from_context(context, site, exclude=None):
     if getattr(request, "fullurl", ""):
         properties["full_url"] = request.fullurl
 
+    # used to target a percentage of inventory.
+    properties["percentage"] = random.randrange(0, 100)
+
     return properties
 
 
