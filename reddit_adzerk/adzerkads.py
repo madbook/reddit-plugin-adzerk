@@ -14,7 +14,12 @@ from r2.controllers.reddit_base import (
 )
 from r2.lib import promote
 from r2.lib.pages import Ads as BaseAds
+from r2.lib.validator import (
+    validate,
+    VList,
+)
 from r2.lib.wrapped import Templated
+
 from r2.models import Subreddit
 
 from reddit_adzerk import adzerkpromote
@@ -105,9 +110,16 @@ class AdServingController(MinimalController):
 
 @add_controller
 class AdXController(MinimalController):
-
-    def GET_passback(self):
+    @validate(
+        passbacks=VList("passbacks"),
+    )
+    def GET_passback(self, passbacks):
         c.allow_framing = True
 
-        return Passback(passback_id=g.live_config["adx_passback_id"]).render()
+        try:
+            passback_ids = [int(p) for p in passbacks]
+        except ValueError:
+            self.abort404()
+
+        return Passback(passback_ids=passback_ids).render()
 
