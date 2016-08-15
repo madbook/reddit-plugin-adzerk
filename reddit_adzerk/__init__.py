@@ -53,6 +53,10 @@ class Adzerk(Plugin):
             'ad_log_sample_rate',
         ],
 
+        ConfigValue.int: [
+            'adx_passback_id',
+        ],
+
     }
 
     js = {

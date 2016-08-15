@@ -116,13 +116,14 @@ class AdXController(MinimalController):
     def GET_passback(self, passbacks):
         c.allow_framing = True
 
+        # backwards compat for single passback.
         if not passbacks:
-            self.abort404()
-
-        try:
-            passback_ids = [int(p) for p in passbacks]
-        except ValueError:
-            self.abort404()
+            passback_ids = [g.live_config["adx_passback_id"]]
+        else:
+            try:
+                passback_ids = [int(p) for p in passbacks]
+            except ValueError:
+                self.abort404()
 
         return Passback(passback_ids=passback_ids).render()
 
