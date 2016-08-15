@@ -49,9 +49,9 @@ class AdEventQueue(EventQueue):
     def ad_request(
             self,
             keywords,
+            properties,
             platform,
-            placement_name,
-            placement_types,
+            placements,
             is_refresh,
             subreddit=None,
             request=None,
@@ -60,9 +60,9 @@ class AdEventQueue(EventQueue):
         """Create an `ad_request` for event-collector.
 
         keywords: Array of keywords used to select the ad.
+        properties: Object contain custom targeting parameters.
         platform: The platform the ad was requested for.
-        placement_name: The identifier of the placement.
-        placement_types: Array of placements types.
+        placements: Array of placement objects (name, types) to be filled.
         is_refresh: Whether or not the request is for the initial ad or a
             refresh after refocusing the page.
         subreddit: The Subreddit of the ad was  displayed on.
@@ -76,10 +76,13 @@ class AdEventQueue(EventQueue):
             context=context,
         )
 
+        # keywords are case insensitive, normalize and sort them
+        # for easier equality testing.
+        keywords = sorted(k.lower() for k in keywords)
         event.add("keywords", keywords)
+        event.add("properties", properties)
         event.add("platform", platform)
-        event.add("placement_name", placement_name)
-        event.add("placement_types", placement_types)
+        event.add("placements", placements)
         event.add("is_refresh", is_refresh)
 
         if not isinstance(subreddit, FakeSubreddit):
@@ -92,10 +95,14 @@ class AdEventQueue(EventQueue):
     def ad_response(
             self,
             keywords,
+            properties,
             platform,
             placement_name,
             placement_type,
-            ad_id,
+            adserver_ad_id,
+            adserver_campaign_id,
+            adserver_creative_id,
+            adserver_flight_id,
             impression_id,
             matched_keywords,
             rate_type,
@@ -111,10 +118,14 @@ class AdEventQueue(EventQueue):
         """Create an `ad_response` for event-collector.
 
         keywords: Array of keywords used to select the ad.
+        properties: Object contain custom targeting parameters.
         platform: The platform the ad was requested for.
         placement_name: The identifier of the placement.
         placement_type: The type of placement the ad is.
-        ad_id: Unique id of the ad response.
+        adserver_ad_id: Unique id of the ad response (from the ad server).
+        adserver_campaign_id: Unique id of the ad campaign (from the ad server).
+        adserver_creative_id: Unique id of the ad creative (from the ad server).
+        adserver_flight_id: Unique id of the ad flight (from the ad server).
         impression_id: Unique id of the impression.
         matched_keywords: An array of the keywords which matched for the ad.
         rate_type: Flat/CPM/CPC/etc.
@@ -134,10 +145,14 @@ class AdEventQueue(EventQueue):
             context=context,
         )
 
+        event.add("properties", properties)
         event.add("platform", platform)
         event.add("placement_name", placement_name)
         event.add("placement_type", placement_type)
-        event.add("ad_id", ad_id)
+        event.add("adserver_ad_id", adserver_ad_id)
+        event.add("adserver_campaign_id", adserver_campaign_id)
+        event.add("adserver_creative_id", adserver_creative_id)
+        event.add("adserver_flight_id", adserver_flight_id)
         event.add("impression_id",
                   impression_id, kind=FieldKind.HIGH_CARDINALITY)
         event.add("rate_type", rate_type)

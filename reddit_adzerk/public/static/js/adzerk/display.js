@@ -3,12 +3,38 @@
 
   global.ados_results = global.ados_results || null;
 
+  var PLACEMENT_TYPES_FRIENDLY_NAMES = {
+    '5': '300x250',
+    '8': '300x100',
+  };
+  var RATE_TYPE_FRIENDLY_NAMES = {
+    '1': 'Flat',
+    '2': 'CPM',
+    '3': 'CPC',
+  }
   var NETWORK = global.ADS_GLOBALS.network;
   var SITE = global.ADS_GLOBALS.site;
+  var PRIORITIES = global.ADS_GLOBALS.priorities;
+  var PRIORITY_FRIEND_NAMES = Object.keys(PRIORITIES).reduce(function(r, key) {
+    r[PRIORITIES[key]] = key
+    return r;
+  }, {});
   var PLACEMENT_TYPES = {
     main: 5,
     sponsorship: 8,
   };
+
+  function asc(a, b) {
+    return a > b ? 1 : -1
+  }
+
+  function lower(s) {
+    return s.toLowerCase();
+  }
+
+  function getPriorityName(id) {
+    return PRIORITY_FRIEND_NAMES[id] || 'unknown (' + id + ')';
+  }
 
   function getConfig() {
     // Accessing `location.hash` directly does different
@@ -106,10 +132,15 @@
   ados.run.push(function() {
     ados.isAsync = true;
     var placement = null;
-    var request = {
-      keywords: config.keywords,
-      properties: config.properties,
-      placement_types: [],
+    var instrumentedProperties = {
+      age_hours: properties.age_hours,
+      percentage: properties.percentage,
+    };
+
+    var requestPayload = {
+      keywords: config.keywords.map(lower).sort(asc),
+      placements: [],
+      properties: instrumentedProperties,
     };
 
     if (config.placements) {
@@ -124,7 +155,12 @@
         placement.setFlightCreativeId(creative);
         placement.setProperties(properties);
 
-        request.placement_types.push(PLACEMENT_TYPES[type]);
+        requestPayload.placements.push({
+          name: 'sidebar_' + type,
+          types: [
+            PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
+          ],
+        })
       }
     } else {
       for (var type in PLACEMENT_TYPES) {
@@ -135,7 +171,13 @@
           properties.frame_id = 'ad_main';
         }
         placement.setProperties(properties);
-        request.placement_types.push(PLACEMENT_TYPES[type]);
+
+        requestPayload.placements.push({
+          name: 'sidebar_' + type,
+          types: [
+            PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
+          ],
+        })
       }
     }
     
@@ -145,7 +187,7 @@
       ados_setKeywords(config.keywords);
     }
 
-    r.frames.postMessage(global.parent, 'request.adzerk', request);
+    r.frames.postMessage(global.parent, 'request.adzerk', requestPayload);
 
     ados_load();
 
@@ -163,18 +205,53 @@
             continue;
           }
 
-          r.frames.postMessage(global.parent, 'response.adzerk', {
-            keywords: request.keywords,
-            properties: request.properties,
-            placement_types: request.placement_types,
-            placement_name: 'banner_' + key,
-            campaign_id: global.ados_ads[key].flight.campaign.id,
-            flight_id: global.ados_ads[key].flight.id,
-            creative_id: global.ados_ads[key].creative.id,
-            ad_id: global.ados_ads[key].id,
-            priority_id: global.ados_ads[key].flight.priorityId,
-            ad_type: global.ados_ads[key].creative.adType,
-          });
+          var adResult = global.ados_ads[key];
+          var impressionMatcher = global.ados_results[key].match(new RegExp(
+            '.*https?:\/\/' +
+            ados.domain +
+            '\/e.gif\?e=([^&]+).*'
+          ));
+          var responsePayload = {
+            keywords: config.keywords.map(lower).sort(asc),
+            placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[adResult.creative.adType],
+            placement_name: 'sidebar_' + key,
+            campaign_id: adResult.flight.campaign.id,
+            flight_id: adResult.flight.id,
+            creative_id: adResult.creative.id,
+            ad_id: adResult.id,
+            priority: getPriorityName(adResult.flight.priorityId),
+            rate_type: RATE_TYPE_FRIENDLY_NAMES[adResult.flight.rateType],
+            ecpm: adResult.ecpm,
+            companions: adResult.companions.map(function(c) {
+              return {
+                ad_id: c.id,
+                placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[c.adType],
+              }
+            }),
+            properties: instrumentedProperties,
+          };
+
+          if (impressionMatcher) {
+            var impressionb64data = impressionMatcher[1];
+
+            // this is url safe base64, need to fix the padding and replace escape characters
+            impressionb64data = impressionb64data + Array((impressionb64data.length % 4) + 1).join('=')
+            impressionb64data = impressionb64data
+                                  .replace(/\-/g, '+')
+                                  .replace(/_/g, '\/');
+
+            try {
+              var impressionData = JSON.parse(global.atob(impressionb64data));
+
+              responsePayload.matched_keywords = impressionData.mk.map(lower).sort(asc);
+              responsePayload.interana_excluded = responsePayload.interana_excluded || {};
+              responsePayload.interana_excluded.impression_id = impressionData.di;
+            } catch (e) {
+              // pass
+            }
+          }
+
+          r.frames.postMessage(global.parent, 'response.adzerk', responsePayload);
         }
 
         // Load companion

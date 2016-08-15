@@ -1005,17 +1005,23 @@ def adzerk_request(
     timer = g.stats.get_timer("providers.adzerk")
     timer.start()
 
-    for placement in placements:
-        g.ad_events.ad_request(
-            keywords=keywords,
-            platform=platform,
-            placement_name=placement["divName"],
-            placement_types=[AD_TYPE_FRIENDLY_NAMES[a] for a in placement["adTypes"]],
-            is_refresh=is_refresh,
-            subreddit=c.site,
-            request=request,
-            context=c,
-        )
+    instrumented_properties = dict(
+        age_hours=properties.get("age_hours", None),
+        percentage=properties.get("percentage", None),
+    )
+    g.ad_events.ad_request(
+        keywords=keywords,
+        platform=platform,
+        placements=[dict(
+            name=placement["divName"],
+            types=[AD_TYPE_FRIENDLY_NAMES[a] for a in placement["adTypes"]],
+        ) for placement in placements],
+        properties=instrumented_properties,
+        is_refresh=is_refresh,
+        subreddit=c.site,
+        request=request,
+        context=c,
+    )
 
     try:
         r = requests.post(url, data=json.dumps(data), headers=headers,
@@ -1068,6 +1074,9 @@ def adzerk_request(
 
         placement = placements_by_name[placement_name]
         ad_id = decision['adId']
+        campaign_id = decision['campaignId']
+        creative_id = decision['creativeId']
+        flight_id = decision['flightId']
         pricing = decision.get("pricing", {})
         revenue = pricing.get("revenue")
         rate_type_id = pricing.get("rateType")
@@ -1101,13 +1110,17 @@ def adzerk_request(
 
 
         # adserver ads are not reddit links, we return the body
-        if decision['campaignId'] in g.adserver_campaign_ids:
+        if campaign_id in g.adserver_campaign_ids:
             g.ad_events.ad_response(
                 keywords=keywords,
+                properties=instrumented_properties,
                 platform=platform,
                 placement_name=placement_name,
                 placement_type="adserver_ad",
-                ad_id=ad_id,
+                adserver_ad_id=ad_id,
+                adserver_campaign_id=campaign_id,
+                adserver_creative_id=creative_id,
+                adserver_flight_id=flight_id,
                 impression_id=impression_id,
                 matched_keywords=matched_keywords,
                 rate_type=rate_type,
@@ -1119,14 +1132,13 @@ def adzerk_request(
 
             return AdserverResponse(decision['contents'][0]['body'])
 
-        adzerk_flight_id = decision['flightId']
         imp_pixel = decision['impressionUrl']
         click_url = decision['clickUrl']
         events_by_id = {event["id"]: event["url"] for event in decision["events"]}
         upvote_pixel = events_by_id[EVENT_TYPE_UPVOTE]
         downvote_pixel = events_by_id[EVENT_TYPE_DOWNVOTE]
 
-        campaign_fullname = PromoCampaignByFlightIdCache.get(adzerk_flight_id)
+        campaign_fullname = PromoCampaignByFlightIdCache.get(flight_id)
         contents = decision['contents'][0]
         body = json.loads(contents['body'])
         link_fullname = body['link']
@@ -1152,10 +1164,14 @@ def adzerk_request(
 
         g.ad_events.ad_response(
             keywords=keywords,
+            properties=instrumented_properties,
             platform=platform,
             placement_name=placement_name,
             placement_type=placement_type,
-            ad_id=ad_id,
+            adserver_ad_id=ad_id,
+            adserver_campaign_id=campaign_id,
+            adserver_creative_id=creative_id,
+            adserver_flight_id=flight_id,
             impression_id=impression_id,
             matched_keywords=matched_keywords,
             rate_type=rate_type,
@@ -1175,15 +1191,13 @@ def adzerk_request(
             if promote.is_external(link):
                 campaign_fullname = promote.EXTERNAL_CAMPAIGN
             else:
-                adzerk_campaign_id = decision['campaignId']
-
                 g.stats.simple_event('adzerk.request.orphaned_flight')
                 g.log.error('adzerk_request: couldn\'t find campaign for flight (az campaign: %s, flight: %s)',
-                    adzerk_campaign_id, adzerk_flight_id)
+                    campaign_id, flight_id)
 
                 # deactivate the flight, it will be reactivated if a
                 # valid campaign actually exists
-                deactivate_orphaned_flight(adzerk_flight_id)
+                deactivate_orphaned_flight(flight_id)
                 continue
 
         res.append(AdzerkResponse(

@@ -70,6 +70,7 @@ class Adzerk(Plugin):
             'lib/json2.js',
             'custom-event.js',
             'frames.js',
+            'adzerk/base64.js',
             'adzerk/display.js',
         ),
 
