@@ -59,16 +59,17 @@ def queue_promo_reports():
     prev_promos = promote.get_served_promos(offset=-1)
     promos = promote.get_served_promos(offset=0)
     already_processed_links = set()
-    already_processed_campaigns = set()
+
+    campaigns_by_link = defaultdict(list)
 
     for campaign, link in itertools.chain(prev_promos, promos):
+        campaigns_by_link[link].append(campaign)
+
+    for link, campaigns in campaigns_by_link.items():
         if link._id36 not in already_processed_links:
             _generate_link_report(link)
+            _generate_promo_reports(campaigns)
             already_processed_links.add(link._id36)
-
-        if campaign._id36 not in already_processed_campaigns:
-            _generate_promo_report(campaign)
-            already_processed_campaigns.add(campaign._id36)
 
     amqp.worker.join()
 
@@ -81,11 +82,11 @@ def _generate_link_report(link):
     }))
 
 
-def _generate_promo_report(campaign):
-    g.log.info("queuing report for campaign %s" % campaign._fullname)
+def _generate_promo_reports(campaigns):
+    g.log.info("queuing report for campaigns %s" % ",".join([c._fullname for c in campaigns]))
     amqp.add_item("adzerk_reporting_q", json.dumps({
-        "action": "generate_lifetime_campaign_report",
-        "campaign_id": campaign._id,
+        "action": "generate_lifetime_campaign_reports",
+        "campaign_ids": [c._id for c in campaigns],
     }))
 
 
@@ -224,48 +225,52 @@ def _handle_generate_daily_link_report(link_id):
         _generate_link_report(link)
 
 
-def _handle_generate_lifetime_campaign_report(campaign_id):
+def _handle_generate_lifetime_campaign_reports(campaign_ids):
     now = datetime.utcnow()
-    campaign = PromoCampaign._byID(campaign_id, data=True)
-    start = campaign.start_date.replace(tzinfo=pytz.utc)
-    end = campaign.end_date.replace(tzinfo=pytz.utc)
+    campaigns = PromoCampaign._byID(campaign_ids, data=True, return_dict=False)
+    start = min(c.start_date for c in campaigns).replace(tzinfo=pytz.utc)
+    end = max(c.end_date for c in campaigns).replace(tzinfo=pytz.utc)
     now = now.replace(tzinfo=pytz.utc)
 
     end = min([now, end])
 
-    g.log.info("generating report for campaign %s" % campaign._fullname)
+    campaign_fullnames = ",".join(c._fullname for c in campaigns)
+
+    g.log.info("generating report for campaigns %s" % campaign_fullnames)
 
     report_id = report.queue_report(
         start=start,
         end=end,
+        groups=["optionId"],
         parameters=[{
-            "flightId": campaign.external_flight_id,
-        }],
+            "flightId": c.external_flight_id,
+        } for c in campaigns],
     )
 
     try:
-        _process_lifetime_campaign_report(
-            campaign=campaign,
+        _process_lifetime_campaign_reports(
+            campaigns=campaigns,
             report_id=report_id,
             queued_date=now,
         )
 
-        g.log.info("successfully processed report for campaign (%s/%s)" %
-            (campaign._fullname, report_id))
+        g.log.info("successfully processed report for campaigns (%s/%s)" %
+            (campaign_fullnames, report_id))
     except report.ReportFailedException as e:
         g.log.error(e)
         # retry if report failed
-        _generate_promo_report(campaign)
+        _generate_promo_reports(campaigns)
 
 
-def _process_lifetime_campaign_report(campaign, report_id, queued_date):
+def _process_lifetime_campaign_reports(campaigns, report_id, queued_date):
     """
-    Processes report for the lifetime of the campaign.
+    Processes report for the lifetime of the campaigns.
 
     Exponentially backs off on retries, throws on timeout.
     """
 
     attempt = 1
+    campaign_fullnames = ",".join(c._fullname for c in campaigns)
 
     while True:
         try:
@@ -276,26 +281,47 @@ def _process_lifetime_campaign_report(campaign, report_id, queued_date):
                 timedelta(seconds=g.az_reporting_timeout))
 
             if queued_date < timeout:
-                raise report.ReportFailedException("campign report timed out (%s/%s)" %
-                    (campaign._fullname, report_id))
+                raise report.ReportFailedException("campign reports timed out (%s/%s)" %
+                    (campaign_fullnames, report_id))
             else:
                 sleep_time = math.pow(RETRY_SLEEP_SECONDS, attempt)
                 attempt = attempt + 1
 
-                g.log.warning("campaign report still pending, retrying in %d seconds (%s/%s)" %
-                    (sleep_time, campaign._fullname, report_id))
+                g.log.warning("campaign reports still pending, retrying in %d seconds (%s/%s)" %
+                    (sleep_time, campaign_fullnames, report_id))
 
                 time.sleep(sleep_time)
 
-    impressions, clicks, spent = _get_total_usage(report_result)
+    report_records = report_result.get("Records", None)
+    campaigns_by_fullname = {c._fullname: c for c in campaigns}
 
-    campaign.adserver_spent_pennies = int(spent * 100)
-    campaign.adserver_impressions = impressions
-    campaign.adserver_clicks = clicks
-    campaign.last_lifetime_report = report_id
-    campaign.last_lifetime_report_run = queued_date
+    if report_records:
+        for detail in report_records[0].get("Details", []):
+            campaign_fullname = _get_fullname(PromoCampaign, detail)
 
-    campaign._commit()
+            if not campaign_fullname:
+                flight_id = _get_flight_id(detail)
+                g.log.error("invalid fullname for campaign (%s/%s)" %
+                    (campaign_fullname, flight_id))
+                continue
+
+            campaign = campaigns_by_fullname.get(campaign_fullname)
+
+            if not campaign:
+                flight_id = _get_flight_id(detail)
+                g.log.warning("no campaign for flight (%s/%s)" %
+                    (campaign_fullname, flight_id))
+                continue
+
+            impressions, clicks, spent = _get_usage(detail)
+
+            campaign.adserver_spent_pennies = int(spent * 100)
+            campaign.adserver_impressions = impressions
+            campaign.adserver_clicks = clicks
+            campaign.last_lifetime_report = report_id
+            campaign.last_lifetime_report_run = queued_date
+
+            campaign._commit()
 
 
 def _reporting_factory():
@@ -358,6 +384,7 @@ def _process_daily_link_report(link, report_id, queued_date):
             campaign_fullname = _get_fullname(PromoCampaign, detail)
 
             if not campaign_fullname:
+                flight_id = _get_flight_id(detail)
                 g.log.error("invalid fullname for campaign (%s/%s)" %
                     (campaign_fullname, flight_id))
                 continue
