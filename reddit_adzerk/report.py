@@ -5,6 +5,7 @@ import requests
 
 from pylons import app_globals as g
 
+from r2.config import feature
 from r2.lib.utils import Enum
 from r2.models.promo import Location
 from r2.models.promo_metrics import LocationPromoMetrics
