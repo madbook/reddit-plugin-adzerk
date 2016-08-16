@@ -58,18 +58,27 @@ def queue_promo_reports():
     """
     prev_promos = promote.get_served_promos(offset=-1)
     promos = promote.get_served_promos(offset=0)
-    already_processed_links = set()
 
-    campaigns_by_link = defaultdict(set)
+    links = set()
+    campaigns = set()
 
     for campaign, link in itertools.chain(prev_promos, promos):
-        campaigns_by_link[link].add(campaign)
+        links.add(link)
+        campaigns.add(campaign)
 
-    for link, campaigns in campaigns_by_link.items():
-        if link._id36 not in already_processed_links:
-            _generate_link_report(link)
-            _generate_promo_reports(campaigns)
-            already_processed_links.add(link._id36)
+    # sort and group campaigns together in `adzerk_reporting_group_size` sized groups
+    campaigns = sorted(campaigns, key=lambda c: c.start_date)
+    campaigns_groups = defaultdict(list)
+
+    for i, campaign in enumerate(campaigns):
+        group = i / g.live_config.get("adzerk_reporting_group_size", 100)
+        campaigns_groups[group].append(campaign)
+
+    for group, campaigns in campaigns_groups.items():
+        _generate_promo_reports(campaigns)
+
+    for link in links:
+        _generate_link_report(link)
 
     amqp.worker.join()
 
