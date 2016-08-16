@@ -437,8 +437,8 @@ def process_report_q():
             _handle_generate_daily_link_report(
                 link_id=data.get("link_id"),
             )
-        elif action == "generate_lifetime_campaign_report":
-            _handle_generate_lifetime_campaign_report(
+        elif action == "generate_lifetime_campaign_reports":
+            _handle_generate_lifetime_campaign_reports(
                 campaign_id=data.get("campaign_id"),
             )
         else:
