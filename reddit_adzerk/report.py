@@ -36,7 +36,12 @@ class ReportFailedException(Exception):
 
 
 def adzerk_endpoint(endpoint):
-    return "%s/%s" % (URL_BASE, endpoint)
+    url = "%s/%s" % (URL_BASE, endpoint)
+
+    if feature.is_enabled("adzerk_reporting_2"):
+        url = url + "?datasource=1"
+
+    return url
 
 
 def az_to_date(date_str):
