@@ -439,7 +439,7 @@ def process_report_q():
             )
         elif action == "generate_lifetime_campaign_reports":
             _handle_generate_lifetime_campaign_reports(
-                campaign_id=data.get("campaign_id"),
+                campaign_ids=data.get("campaign_ids"),
             )
         else:
             g.log.warning("adzerk_reporting_q: unknown action - \"%s\"" % action)
