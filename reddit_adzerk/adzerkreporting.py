@@ -60,10 +60,10 @@ def queue_promo_reports():
     promos = promote.get_served_promos(offset=0)
     already_processed_links = set()
 
-    campaigns_by_link = defaultdict(list)
+    campaigns_by_link = defaultdict(set)
 
     for campaign, link in itertools.chain(prev_promos, promos):
-        campaigns_by_link[link].append(campaign)
+        campaigns_by_link[link].add(campaign)
 
     for link, campaigns in campaigns_by_link.items():
         if link._id36 not in already_processed_links:
