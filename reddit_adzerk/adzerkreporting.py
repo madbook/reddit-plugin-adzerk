@@ -61,43 +61,65 @@ def queue_promo_reports():
 
     links = set()
     campaigns = set()
+    campaigns_by_link = defaultdict(set)
 
     for campaign, link in itertools.chain(prev_promos, promos):
         links.add(link)
         campaigns.add(campaign)
+        campaigns_by_link[link].add(campaign)
 
-    # sort and group campaigns together in `adzerk_reporting_group_size` sized groups
+    # sort and group links together in `adzerk_reporting_link_group_size` sized groups
+    def sort_links(link):
+        campaigns = campaigns_by_link[link]
+        start, end = _get_campaigns_date_range(campaigns)
+
+        return start
+
+    links = sorted(links, key=sort_links)
+    link_groups = defaultdict(list)
+
+    for i, link in enumerate(links):
+        group = i / g.live_config.get("adzerk_reporting_link_group_size", 50)
+        link_groups[group].append(link)
+
+    # sort and group campaigns together in `adzerk_reporting_campaign_group_size` sized groups
     campaigns = sorted(campaigns, key=lambda c: c.start_date)
     campaigns_groups = defaultdict(list)
 
     for i, campaign in enumerate(campaigns):
-        group = i / g.live_config.get("adzerk_reporting_group_size", 100)
+        group = i / g.live_config.get("adzerk_reporting_campaign_group_size", 100)
         campaigns_groups[group].append(campaign)
 
     for group, campaigns in campaigns_groups.items():
         _generate_promo_reports(campaigns)
 
-    for link in links:
-        _generate_link_report(link)
+    for group, links in link_groups:
+        _generate_link_reports(link)
 
     amqp.worker.join()
 
 
-def _generate_link_report(link):
-    g.log.info("queuing report for link %s" % link._fullname)
+def _generate_link_reports(links):
+    g.log.info("queuing report for link %s" % ",".join(l._fullname for l in links))
     amqp.add_item("adzerk_reporting_q", json.dumps({
-        "action": "generate_daily_link_report",
-        "link_id": link._id,
+        "action": "generate_daily_link_reports",
+        "link_ids": [l._id for l in links],
     }))
 
 
 def _generate_promo_reports(campaigns):
-    g.log.info("queuing report for campaigns %s" % ",".join([c._fullname for c in campaigns]))
+    g.log.info("queuing report for campaigns %s" % ",".join(c._fullname for c in campaigns))
     amqp.add_item("adzerk_reporting_q", json.dumps({
         "action": "generate_lifetime_campaign_reports",
         "campaign_ids": [c._id for c in campaigns],
     }))
 
+
+def _get_campaigns_date_range(campaigns):
+    start = min(promo.start_date for promo in campaigns)
+    end = max(promo.end_date for promo in campaigns)
+
+    return (start, end)
 
 def _normalize_usage(impressions, clicks, spent):
     # adzerk processes clicks faster than impressions
@@ -166,62 +188,63 @@ def _get_fullname(cls, report_fragment):
     else:
         return fullname
 
+
+def _get_campaign_id(report_fragment):
+    return report_fragment.get("Grouping", {}).get("CampaignId", None)
+
+
 def _get_flight_id(report_fragment):
     return report_fragment.get("Grouping", {}).get("OptionId", None)
 
 
-def _handle_generate_daily_link_report(link_id):
+def _handle_generate_daily_link_reports(link_ids):
     now = datetime.utcnow()
-    link = Link._byID(link_id, data=True)
-    campaigns = list(PromoCampaign._by_link(link._id))
+    links = Link._byID(link_ids, data=True, return_dict=False)
+    campaigns = list(PromoCampaign._query(PromoCampaign.c.link_id.in_(link_ids)))
 
     if not campaigns:
         return
 
-    link_start = min([promo.start_date for promo in campaigns])
-    link_end = max([promo.end_date for promo in campaigns])
-
+    links_start, links_end = _get_campaigns_date_range(campaigns)
     now = now.replace(tzinfo=pytz.utc)
-    link_start = link_start.replace(tzinfo=pytz.utc)
-    link_end = link_end.replace(tzinfo=pytz.utc)
+    links_start = links_start.replace(tzinfo=pytz.utc)
+    links_end = links_end.replace(tzinfo=pytz.utc)
 
     # if data has already been processed then there's no need
     # to redo it.  use the last time the report was run as a 
     # starting point, but subtract 24hrs since initial numbers
     # are preliminary.
-    if hasattr(link, "last_daily_report_run"):
-        start = max([
-            link.last_daily_report_run - timedelta(hours=24),
-            link_start,
-        ])
+    last_run = min(getattr(l, "last_daily_report_run", links_start) for l in links)
+    start = max(
+        last_run - timedelta(hours=24),
+        links_start,
+    )
 
-        # in cases where we may be running a report well after a link
-        # has completed ensure we always use the actual start.
-        if start > link_end:
-            start = link_start
+    # in cases where we may be running a report well after a link
+    # has completed ensure we always use the actual start.
+    if start > links_end:
+        start = links_start
 
-    else:
-        start = link_start
+    end = min([now, links_end])
 
-    end = min([now, link_end])
-
-    g.log.info("generating report for link %s" % link._fullname)
+    link_fullnames = ",".join([l._fullname for l in links])
+    g.log.info("generating report for link %s" % link_fullnames)
 
     report_id = report.queue_report(
         start=start,
         end=end,
         groups=["optionId", "day"],
         parameters=[{
-            "campaignId": link.external_campaign_id,
-        }],
+            "campaignId": l.external_campaign_id,
+        } for l in links],
     )
 
     g.log.info("processing report for link (%s/%s)" %
-        (link._fullname, report_id))
+        (link_fullnames, report_id))
 
     try:
-        _process_daily_link_report(
-            link=link,
+        _process_daily_link_reports(
+            links=links,
             report_id=report_id,
             queued_date=now,
         )
@@ -231,7 +254,7 @@ def _handle_generate_daily_link_report(link_id):
     except report.ReportFailedException as e:
         g.log.error(e)
         # retry if report failed
-        _generate_link_report(link)
+        _generate_link_reports(links)
 
 
 def _handle_generate_lifetime_campaign_reports(campaign_ids):
@@ -340,13 +363,14 @@ def _reporting_factory():
         spent_pennies=0,
     )
 
-def _process_daily_link_report(link, report_id, queued_date):
+def _process_daily_link_reports(links, report_id, queued_date):
     """
     Processes report grouped by day and flight.
 
     Exponentially backs off on retries, throws on timeout.
     """
 
+    link_fullnames = ",".join([l._fullname for l in links])
     attempt = 1
 
     while True:
@@ -358,36 +382,30 @@ def _process_daily_link_report(link, report_id, queued_date):
                 timedelta(seconds=g.az_reporting_timeout))
 
             if queued_date < timeout:
-                raise report.ReportFailedException("link report timed out (%s/%s)" %
-                    (link._fullname, report_id))
+                raise report.ReportFailedException("link reports timed out (%s/%s)" %
+                    (link_fullnames, report_id))
             else:
                 sleep_time = math.pow(RETRY_SLEEP_SECONDS, attempt)
                 attempt = attempt + 1
 
-                g.log.warning("link report still pending, retrying in %d seconds (%s/%s)" %
-                    (sleep_time, link._fullname, report_id))
+                g.log.warning("link reports still pending, retrying in %d seconds (%s/%s)" %
+                    (sleep_time, link_fullnames, report_id))
 
                 time.sleep(sleep_time)
 
     g.log.debug(report_result)
 
-    campaigns_by_fullname = {campaign._fullname: campaign for campaign
-        in PromoCampaign._by_link(link._id)}
+    link_ids = [l._id for l in links]
+    campaigns = list(PromoCampaign._query(PromoCampaign.c.link_id.in_(link_ids)))
+    campaigns_by_fullname = {c._fullname: c for c in campaigns}
+    links_by_id = { l._id: l for l in links}
 
-    # report is by date, by flight. each record is a day
+    # report is by date, by flight. each record is a day (not grouped by campaign)
     # and each detail is a flight for that day.
     for record in report_result.get("Records", []):
-        impressions, clicks, spent = _get_usage(record)
         date = _get_date(record)
 
-        _insert_daily_link_reporting(
-            codename=link._fullname,
-            date=date,
-            impressions=impressions,
-            clicks=clicks,
-            spent_pennies=spent * 100.,
-        )
-
+        link_details = defaultdict(_reporting_factory)
         campaign_details = defaultdict(_reporting_factory)
         for detail in record.get("Details", []):
             campaign_fullname = _get_fullname(PromoCampaign, detail)
@@ -399,6 +417,7 @@ def _process_daily_link_report(link, report_id, queued_date):
                 continue
 
             campaign = campaigns_by_fullname.get(campaign_fullname)
+            link = links_by_id[campaign.link_id]
 
             if not campaign:
                 flight_id = _get_flight_id(detail)
@@ -409,10 +428,15 @@ def _process_daily_link_report(link, report_id, queued_date):
             impressions, clicks, spent = _get_usage(detail)
 
             # if the price changes then there may be multiple records for each campaign/date.
-            values = campaign_details[(campaign, date)]
-            values["impressions"] = values["impressions"] + impressions
-            values["clicks"] = values["clicks"] + clicks
-            values["spent_pennies"] = values["spent_pennies"] + (spent * 100.)
+            campaign_values = campaign_details[(campaign, date)]
+            campaign_values["impressions"] = campaign_values["impressions"] + impressions
+            campaign_values["clicks"] = campaign_values["clicks"] + clicks
+            campaign_values["spent_pennies"] = campaign_values["spent_pennies"] + (spent * 100.)
+
+            link_values = link_details[(link, date)]
+            link_values["impressions"] = link_values["impressions"] + impressions
+            link_values["clicks"] = link_values["clicks"] + clicks
+            link_values["spent_pennies"] = link_values["spent_pennies"] + (spent * 100.)
 
         for (campaign, date), values in campaign_details.iteritems():
             # hack around `target_name`s for multi subreddit collections
@@ -431,6 +455,13 @@ def _process_daily_link_report(link, report_id, queued_date):
                 **values
             )
 
+        for (link, date), values in link_details.iteritems():
+            _insert_daily_link_reporting(
+                codename=link._fullname,
+                date=date,
+                **values
+            )
+
     link.last_daily_report = report_id
     link.last_daily_report_run = queued_date
     link._commit()
@@ -442,9 +473,9 @@ def process_report_q():
         data = json.loads(message.body)
         action = data.get("action")
 
-        if action == "generate_daily_link_report":
-            _handle_generate_daily_link_report(
-                link_id=data.get("link_id"),
+        if action == "generate_daily_link_reports":
+            _handle_generate_daily_link_reports(
+                link_ids=data.get("link_ids"),
             )
         elif action == "generate_lifetime_campaign_reports":
             _handle_generate_lifetime_campaign_reports(
