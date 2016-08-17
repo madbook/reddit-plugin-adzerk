@@ -222,7 +222,7 @@
             priority: getPriorityName(adResult.flight.priorityId),
             rate_type: RATE_TYPE_FRIENDLY_NAMES[adResult.flight.rateType],
             ecpm: adResult.ecpm,
-            companions: adResult.companions.map(function(c) {
+            companions: (adResult.companions || []).map(function(c) {
               return {
                 ad_id: c.id,
                 placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[c.adType],
