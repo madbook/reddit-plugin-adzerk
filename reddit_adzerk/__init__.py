@@ -55,6 +55,8 @@ class Adzerk(Plugin):
 
         ConfigValue.int: [
             'adx_passback_id',
+            'adzerk_reporting_link_group_size',
+            'adzerk_reporting_campaign_group_size',
         ],
 
     }
