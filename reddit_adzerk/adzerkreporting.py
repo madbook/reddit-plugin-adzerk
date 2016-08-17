@@ -94,7 +94,7 @@ def queue_promo_reports():
         _generate_promo_reports(campaigns)
 
     for group, links in link_groups.items():
-        _generate_link_reports(link)
+        _generate_link_reports(links)
 
     amqp.worker.join()
 
@@ -250,7 +250,7 @@ def _handle_generate_daily_link_reports(link_ids):
         )
 
         g.log.info("successfully processed report for link (%s/%s)" %
-            (link._fullname, report_id))
+            (link_fullnames, report_id))
     except report.ReportFailedException as e:
         g.log.error(e)
         # retry if report failed
