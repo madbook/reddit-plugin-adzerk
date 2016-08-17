@@ -93,7 +93,7 @@ def queue_promo_reports():
     for group, campaigns in campaigns_groups.items():
         _generate_promo_reports(campaigns)
 
-    for group, links in link_groups:
+    for group, links in link_groups.items():
         _generate_link_reports(link)
 
     amqp.worker.join()
