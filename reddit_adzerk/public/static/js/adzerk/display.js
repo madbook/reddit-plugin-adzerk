@@ -215,16 +215,16 @@
             keywords: config.keywords.map(lower).sort(asc),
             placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[adResult.creative.adType],
             placement_name: 'sidebar_' + key,
-            campaign_id: adResult.flight.campaign.id,
-            flight_id: adResult.flight.id,
-            creative_id: adResult.creative.id,
-            ad_id: adResult.id,
+            adserver_campaign_id: adResult.flight.campaign.id,
+            adserver_flight_id: adResult.flight.id,
+            adserver_creative_id: adResult.creative.id,
+            adserver_ad_id: adResult.id,
             priority: getPriorityName(adResult.flight.priorityId),
             rate_type: RATE_TYPE_FRIENDLY_NAMES[adResult.flight.rateType],
             ecpm: adResult.ecpm,
             companions: (adResult.companions || []).map(function(c) {
               return {
-                ad_id: c.id,
+                adserver_ad_id: c.id,
                 placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[c.adType],
               }
             }),
