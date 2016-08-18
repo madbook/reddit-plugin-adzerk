@@ -86,10 +86,15 @@
     properties.percentage = Math.round(Math.random() * 100);
   }
 
-  // Ensure all property values are URI encoded since
-  // ados doesn't handle this properly.
-  for (var key in properties) {
-    properties[key] = encodeURIComponent(properties[key]);
+  function encodeProperties(props) {
+    // Ensure all property values are URI encoded since
+    // ados doesn't handle this properly.
+    var encoded = {};
+    for (var key in properties) {
+      encoded[key] = encodeURIComponent(properties[key]);
+    }
+
+    return encoded;
   }
 
   // Display a random image in lieu of an ad for certain keywords.
@@ -153,7 +158,7 @@
 
         placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
         placement.setFlightCreativeId(creative);
-        placement.setProperties(properties);
+        placement.setProperties(encodeProperties(properties));
 
         requestPayload.placements.push({
           name: 'sidebar_' + type,
@@ -170,7 +175,7 @@
         } else {
           properties.frame_id = 'ad_main';
         }
-        placement.setProperties(properties);
+        placement.setProperties(encodeProperties(properties));
 
         requestPayload.placements.push({
           name: 'sidebar_' + type,
