@@ -25,7 +25,6 @@ class Adzerk(Plugin):
         ConfigValue.int: [
             'az_selfserve_salesperson_id',
             'az_selfserve_network_id',
-            'az_reporting_timeout',
         ],
 
         ConfigValue.float: [
@@ -57,6 +56,7 @@ class Adzerk(Plugin):
             'adx_passback_id',
             'adzerk_reporting_link_group_size',
             'adzerk_reporting_campaign_group_size',
+            'adzerk_reporting_timeout',
         ],
 
     }

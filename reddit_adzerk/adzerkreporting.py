@@ -7,7 +7,7 @@ Runs campaign reports for lifetime impression, clicks, and spend.
 A cron job is used to queue reports for promos that are currently
 serving, or served the day before.  The queue blocks until a
 report can be retrived until moving on to the next item.  If a
-report is pending for more than `az_reporting_timeout` it is
+report is pending for more than `adzerk_reporting_timeout` it is
 assumed to have failed and is generated.
 """
 
@@ -310,7 +310,7 @@ def _process_lifetime_campaign_reports(campaigns, report_id, queued_date):
             break
         except report.ReportPendingException as e:
             timeout = (datetime.utcnow().replace(tzinfo=pytz.utc) -
-                timedelta(seconds=g.az_reporting_timeout))
+                timedelta(seconds=g.live_config.get("adzerk_reporting_timeout", 500)))
 
             if queued_date < timeout:
                 raise report.ReportFailedException("campign reports timed out (%s/%s)" %
@@ -379,7 +379,7 @@ def _process_daily_link_reports(links, report_id, queued_date):
             break
         except report.ReportPendingException as e:
             timeout = (datetime.utcnow().replace(tzinfo=pytz.utc) -
-                timedelta(seconds=g.az_reporting_timeout))
+                timedelta(seconds=g.live_config.get("adzerk_reporting_timeout", 500)))
 
             if queued_date < timeout:
                 raise report.ReportFailedException("link reports timed out (%s/%s)" %
