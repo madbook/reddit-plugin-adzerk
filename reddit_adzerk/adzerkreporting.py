@@ -251,7 +251,6 @@ def _handle_generate_daily_link_reports(link_ids, campaign_ids):
     try:
         _process_daily_link_reports(
             links=links,
-            campaigns=campaigns,
             report_id=report_id,
             queued_date=now,
         )
@@ -370,7 +369,7 @@ def _reporting_factory():
         spent_pennies=0,
     )
 
-def _process_daily_link_reports(links, campaigns, report_id, queued_date):
+def _process_daily_link_reports(links, report_id, queued_date):
     """
     Processes report grouped by day and flight.
 
@@ -403,6 +402,7 @@ def _process_daily_link_reports(links, campaigns, report_id, queued_date):
     g.log.debug(report_result)
 
     link_ids = [l._id for l in links]
+    campaigns = list(PromoCampaign._query(PromoCampaign.c.link_id.in_(link_ids)))
     campaigns_by_fullname = {c._fullname: c for c in campaigns}
     links_by_id = { l._id: l for l in links}
 
