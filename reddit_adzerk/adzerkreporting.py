@@ -59,28 +59,30 @@ def queue_promo_reports():
     prev_promos = promote.get_served_promos(offset=-1)
     promos = promote.get_served_promos(offset=0)
 
-    links = set()
     campaigns = set()
     campaigns_by_link = defaultdict(set)
 
     for campaign, link in itertools.chain(prev_promos, promos):
-        links.add(link)
         campaigns.add(campaign)
         campaigns_by_link[link].add(campaign)
 
+    links = [(link, campaigns) for link, campaigns in campaigns_by_link.items()]
+
     # sort and group links together in `adzerk_reporting_link_group_size` sized groups
-    def sort_links(link):
-        campaigns = campaigns_by_link[link]
+    def sort_links(items):
+        link, campaigns = items
         start, end = _get_campaigns_date_range(campaigns)
 
         return start
 
     links = sorted(links, key=sort_links)
-    link_groups = defaultdict(list)
+    link_groups = defaultdict(lambda: defaultdict(list))
 
-    for i, link in enumerate(links):
+    for i, items in enumerate(links):
+        link, campaigns = items
         group = i / g.live_config.get("adzerk_reporting_link_group_size", 50)
-        link_groups[group].append(link)
+        link_groups[group]["links"].append(link)
+        link_groups[group]["campaigns"] = link_groups[group]["campaigns"] + list(campaigns)
 
     # sort and group campaigns together in `adzerk_reporting_campaign_group_size` sized groups
     campaigns = sorted(campaigns, key=lambda c: c.start_date)
@@ -93,17 +95,21 @@ def queue_promo_reports():
     for group, campaigns in campaigns_groups.items():
         _generate_promo_reports(campaigns)
 
-    for group, links in link_groups.items():
-        _generate_link_reports(links)
+    for group, items in link_groups.items():
+        _generate_link_reports(items)
 
     amqp.worker.join()
 
 
-def _generate_link_reports(links):
+def _generate_link_reports(items):
+    links = items["links"]
+    campaigns = items["campaigns"]
+
     g.log.info("queuing report for link %s" % ",".join(l._fullname for l in links))
     amqp.add_item("adzerk_reporting_q", json.dumps({
         "action": "generate_daily_link_reports",
         "link_ids": [l._id for l in links],
+        "campaign_ids": [c._id for c in campaigns],
     }))
 
 
@@ -197,10 +203,10 @@ def _get_flight_id(report_fragment):
     return report_fragment.get("Grouping", {}).get("OptionId", None)
 
 
-def _handle_generate_daily_link_reports(link_ids):
+def _handle_generate_daily_link_reports(link_ids, campaign_ids):
     now = datetime.utcnow()
     links = Link._byID(link_ids, data=True, return_dict=False)
-    campaigns = list(PromoCampaign._query(PromoCampaign.c.link_id.in_(link_ids)))
+    campaigns = PromoCampaign._byID(campaign_ids, data=True, return_dict=False)
 
     if not campaigns:
         return
@@ -245,6 +251,7 @@ def _handle_generate_daily_link_reports(link_ids):
     try:
         _process_daily_link_reports(
             links=links,
+            campaigns=campaigns,
             report_id=report_id,
             queued_date=now,
         )
@@ -363,7 +370,7 @@ def _reporting_factory():
         spent_pennies=0,
     )
 
-def _process_daily_link_reports(links, report_id, queued_date):
+def _process_daily_link_reports(links, campaigns, report_id, queued_date):
     """
     Processes report grouped by day and flight.
 
@@ -396,7 +403,6 @@ def _process_daily_link_reports(links, report_id, queued_date):
     g.log.debug(report_result)
 
     link_ids = [l._id for l in links]
-    campaigns = list(PromoCampaign._query(PromoCampaign.c.link_id.in_(link_ids)))
     campaigns_by_fullname = {c._fullname: c for c in campaigns}
     links_by_id = { l._id: l for l in links}
 
@@ -476,6 +482,7 @@ def process_report_q():
         if action == "generate_daily_link_reports":
             _handle_generate_daily_link_reports(
                 link_ids=data.get("link_ids"),
+                campaign_ids=data.get("campaign_ids"),
             )
         elif action == "generate_lifetime_campaign_reports":
             _handle_generate_lifetime_campaign_reports(
