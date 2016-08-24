@@ -66,12 +66,12 @@ def queue_promo_reports():
         campaigns.add(campaign)
         campaigns_by_link[link].add(campaign)
 
-    links = [(link, campaigns) for link, campaigns in campaigns_by_link.items()]
+    links = [(link, link_campaigns) for link, link_campaigns in campaigns_by_link.items()]
 
     # sort and group links together in `adzerk_reporting_link_group_size` sized groups
     def sort_links(items):
-        link, campaigns = items
-        start, end = _get_campaigns_date_range(campaigns)
+        link, link_campaigns = items
+        start, end = _get_campaigns_date_range(link_campaigns)
 
         return start
 
@@ -79,10 +79,10 @@ def queue_promo_reports():
     link_groups = defaultdict(lambda: defaultdict(list))
 
     for i, items in enumerate(links):
-        link, campaigns = items
+        link, link_campaigns = items
         group = i / g.live_config.get("adzerk_reporting_link_group_size", 50)
         link_groups[group]["links"].append(link)
-        link_groups[group]["campaigns"] = link_groups[group]["campaigns"] + list(campaigns)
+        link_groups[group]["campaigns"] = link_groups[group]["campaigns"] + list(link_campaigns)
 
     # sort and group campaigns together in `adzerk_reporting_campaign_group_size` sized groups
     campaigns = sorted(campaigns, key=lambda c: c.start_date)
@@ -92,8 +92,8 @@ def queue_promo_reports():
         group = i / g.live_config.get("adzerk_reporting_campaign_group_size", 100)
         campaigns_groups[group].append(campaign)
 
-    for group, campaigns in campaigns_groups.items():
-        _generate_promo_reports(campaigns)
+    for group, items in campaigns_groups.items():
+        _generate_promo_reports(items)
 
     for group, items in link_groups.items():
         _generate_link_reports(items)
