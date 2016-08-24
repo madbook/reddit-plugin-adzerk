@@ -234,7 +234,8 @@ def _handle_generate_daily_link_reports(link_ids, campaign_ids):
     end = min([now, links_end])
 
     link_fullnames = ",".join([l._fullname for l in links])
-    g.log.info("generating report for link %s" % link_fullnames)
+    g.log.info("generating report for link %s (%s-%s)" % (
+        link_fullnames, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')))
 
     report_id = report.queue_report(
         start=start,
@@ -274,7 +275,8 @@ def _handle_generate_lifetime_campaign_reports(campaign_ids):
 
     campaign_fullnames = ",".join(c._fullname for c in campaigns)
 
-    g.log.info("generating report for campaigns %s" % campaign_fullnames)
+    g.log.info("generating report for campaigns %s (%s-%s)" % (
+        campaign_fullnames, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')))
 
     report_id = report.queue_report(
         start=start,
