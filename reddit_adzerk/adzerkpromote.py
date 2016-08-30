@@ -943,10 +943,10 @@ class AdserverResponse(object):
 
 def adzerk_request(
     keywords, properties, user_id, placement_names,
-    timeout=1.5,
     platform="desktop",
     is_refresh=False,
     referrer=None,
+    timeout=None,
 ):
     placements = []
     subreddit = None
@@ -1323,6 +1323,7 @@ class AdzerkApiController(api.ApiController):
             platform=platform,
             is_refresh=is_refresh,
             referrer=referrer,
+            timeout=int(g.live_config.get("ads_loading_timeout_ms", 1000) / 1000.),
         )
 
         if not response:
