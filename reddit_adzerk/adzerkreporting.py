@@ -335,6 +335,7 @@ def _process_lifetime_campaign_reports(campaigns, report_id, queued_date):
     report_records = report_result.get("Records", None)
     campaigns_by_fullname = {c._fullname: c for c in campaigns}
 
+    campaign_results = defaultdict(_reporting_factory)
     if report_records:
         for detail in report_records[0].get("Details", []):
             campaign_fullname = _get_fullname(PromoCampaign, detail)
@@ -355,13 +356,20 @@ def _process_lifetime_campaign_reports(campaigns, report_id, queued_date):
 
             impressions, clicks, spent = _get_usage(detail)
 
-            campaign.adserver_spent_pennies = int(spent * 100)
-            campaign.adserver_impressions = impressions
-            campaign.adserver_clicks = clicks
-            campaign.last_lifetime_report = report_id
-            campaign.last_lifetime_report_run = queued_date
+            # if the price changes there may be more than 1 record for a single campaign.
+            campaign_values = campaign_results[campaign]
+            campaign_values["impressions"] = campaign_values["impressions"] + impressions
+            campaign_values["clicks"] = campaign_values["clicks"] + clicks
+            campaign_values["spent_pennies"] = campaign_values["spent_pennies"] + (spent * 100.)
 
-            campaign._commit()
+    for campaign, values in campaign_results.items():
+        campaign.adserver_spent_pennies = values["spent_pennies"]
+        campaign.adserver_impressions = values["impressions"]
+        campaign.adserver_clicks = values["clicks"]
+        campaign.last_lifetime_report = report_id
+        campaign.last_lifetime_report_run = queued_date
+
+        campaign._commit()
 
 
 def _reporting_factory():
