@@ -23,6 +23,7 @@
     main: 5,
     sponsorship: 8,
   };
+  var ZONES = global.ADS_GLOBALS.zones;
 
   function asc(a, b) {
     return a > b ? 1 : -1
@@ -169,10 +170,16 @@
       }
     } else {
       for (var type in PLACEMENT_TYPES) {
-        placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
+        var placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
         if(properties.double_sidebar && type === 'top'){
+          if (ZONES['above_the_fold']) {
+            placement.setZone(ZONES['above_the_fold']);
+          }
           properties.frame_id = 'ad_main_top';
         } else {
+          if (ZONES['below_the_fold']) {
+            placement.setZone(ZONES['below_the_fold']);
+          }
           properties.frame_id = 'ad_main';
         }
         placement.setProperties(encodeProperties(properties));

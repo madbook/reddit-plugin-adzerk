@@ -5,4 +5,5 @@ def get_js_config():
         "network": g.az_selfserve_network_id,
         "site": g.az_selfserve_site_ids["desktop"],
         "priorities": g.az_selfserve_priorities,
+        "zones": g.adzerk_zones,
     }

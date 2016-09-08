@@ -38,6 +38,7 @@ class Adzerk(Plugin):
         ConfigValue.dict(ConfigValue.str, ConfigValue.int): [
             'az_selfserve_priorities',
             'az_selfserve_site_ids',
+            'adzerk_zones',
         ],
 
         ConfigValue.tuple_of(ConfigValue.int): [
