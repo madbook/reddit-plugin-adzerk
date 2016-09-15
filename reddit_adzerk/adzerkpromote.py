@@ -452,6 +452,7 @@ def update_flight(link, campaign, triggered_by=None):
         'PriorityId': g.az_selfserve_priorities[campaign.priority_name],
         'IsDeleted': False,
         'IsActive': is_active,
+        'IsTrackingConversions': True,
     }
 
     if campaign.frequency_cap:
