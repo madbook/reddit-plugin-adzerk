@@ -42,7 +42,6 @@ class Adzerk(Plugin):
         ],
 
         ConfigValue.tuple_of(ConfigValue.int): [
-            'adserver_campaign_ids',
             'blank_campaign_ids',
         ],
     }

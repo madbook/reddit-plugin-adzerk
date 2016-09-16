@@ -940,11 +940,6 @@ AdzerkResponse = namedtuple(
 )
 
 
-class AdserverResponse(object):
-    def __init__(self, body):
-        self.body = body
-
-
 class BlankCreativeResponse(object):
     def __init__(self, impression_pixel, click_pixel):
         self.body = "<div data-blank=true><a href=\"%s\"><img src=\"%s\" height=0 width=0/></a></div>" % (click_pixel, impression_pixel)  # noqa
@@ -1114,29 +1109,6 @@ def adzerk_request(
 
         if matched_keywords:
             matched_keywords = matched_keywords.split(",")
-
-        # adserver ads are not reddit links, we return the body
-        if campaign_id in g.adserver_campaign_ids:
-            g.ad_events.ad_response(
-                keywords=keywords,
-                properties=instrumented_properties,
-                platform=platform,
-                placement_name=placement_name,
-                placement_type="adserver_ad",
-                adserver_ad_id=ad_id,
-                adserver_campaign_id=campaign_id,
-                adserver_creative_id=creative_id,
-                adserver_flight_id=flight_id,
-                impression_id=impression_id,
-                matched_keywords=matched_keywords,
-                rate_type=rate_type,
-                clearing_price=revenue,
-                subreddit=c.site,
-                request=request,
-                context=c,
-            )
-
-            return AdserverResponse(decision['contents'][0]['body'])
 
         imp_pixel = decision['impressionUrl']
         click_url = decision['clickUrl']
@@ -1360,11 +1332,8 @@ class AdzerkApiController(api.ApiController):
             g.stats.simple_event('adzerk.request.no_promo')
             return
 
-        # for adservers, adzerk returns markup so we pass it to the client
-        if isinstance(response, AdserverResponse):
-            g.stats.simple_event('adzerk.request.adserver')
-            return responsive(response.body)
-        elif isinstance(response, BlankCreativeResponse):
+        # for blanks, adzerk returns markup so we pass it to the client
+        if isinstance(response, BlankCreativeResponse):
             g.stats.simple_event('adzerk.request.blank')
             return responsive(response.body)
 
