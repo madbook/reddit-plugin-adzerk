@@ -45,6 +45,7 @@ from r2.lib.validator import (
     VBoolean,
     VOneOf,
     VList,
+    VInt,
 )
 
 from r2.models import (
@@ -1299,6 +1300,8 @@ class AdzerkApiController(api.ApiController):
         placements=VList("placements"),
         displayed_things=VPrintable("dt", max_length=200),
         referrer=VPrintable("referrer", max_length=2048),
+        user_day=VInt("day", 0),
+        user_hour=VInt("hour", 0),
     )
     def POST_request_promo(
         self,
@@ -1311,6 +1314,8 @@ class AdzerkApiController(api.ApiController):
         placements,
         displayed_things,
         referrer,
+        user_day,
+        user_hour,
     ):
         self.OPTIONS_request_promo()
 
@@ -1330,6 +1335,8 @@ class AdzerkApiController(api.ApiController):
             return
 
         properties = properties_from_context(c, site)
+        properties['user_day'] = user_day
+        properties['user_hour'] = user_hour
 
         # backwards compat
         if platform is None:
