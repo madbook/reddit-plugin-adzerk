@@ -1302,6 +1302,10 @@ class AdzerkApiController(api.ApiController):
         referrer=VPrintable("referrer", max_length=2048),
         user_day=VInt("day", 0),
         user_hour=VInt("hour", 0),
+        adblock=VOneOf("adblock", [
+            "installed",
+            "off",
+        ], default=None),
     )
     def POST_request_promo(
         self,
@@ -1316,6 +1320,7 @@ class AdzerkApiController(api.ApiController):
         referrer,
         user_day,
         user_hour,
+        adblock,
     ):
         self.OPTIONS_request_promo()
 
@@ -1337,6 +1342,9 @@ class AdzerkApiController(api.ApiController):
         properties = properties_from_context(c, site)
         properties['user_day'] = user_day
         properties['user_hour'] = user_hour
+
+        if adblock is not None:
+            properties["adblock"] = adblock
 
         # backwards compat
         if platform is None:
