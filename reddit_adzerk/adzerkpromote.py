@@ -61,12 +61,19 @@ from r2.models import (
 )
 from r2.models import promo
 
+from r2admin.lib.irc import (
+    CHANNEL_TYPES,
+    queue_alert_report,
+)
+
 from reddit_adzerk.lib.cache import PromoCampaignByFlightIdCache
 from reddit_adzerk.lib.validator import (
     VSite,
 )
 
 hooks = HookRegistrar()
+
+ADS_ALERT_CHANNEL = '#ads-eng-salon'
 
 LEADERBOARD_AD_TYPE = 4
 EMPTY_AD_TYPE = 20
@@ -942,6 +949,25 @@ AdzerkResponse = namedtuple(
 )
 
 
+def _queue_deactivation_request(flight_id, invalid_attr=None):
+    cache_key = 'rl:flight_id_%s' % flight_id
+
+    if g.gencache.add(cache_key, True, time=60*10):
+        deactivate_orphaned_flight(flight_id)
+
+        if invalid_attr:
+            msg = ('Adzerk flight %s response contains an invalid %s' %
+                   (flight_id, invalid_attr))
+        else:
+            msg = 'Adzerk flight %s response is invalid' % flight_id
+
+        queue_alert_report(
+            msg,
+            channel_name=ADS_ALERT_CHANNEL,
+            channel_method=CHANNEL_TYPES.SLACK,
+        )
+
+
 class BlankCreativeResponse(object):
     def __init__(self, impression_pixel, click_pixel):
         self.body = "<div data-blank=true><a href=\"%s\"><img src=\"%s\" height=0 width=0/></a></div>" % (click_pixel, impression_pixel)  # noqa
@@ -1154,7 +1180,14 @@ def adzerk_request(
 
         campaign_fullname = PromoCampaignByFlightIdCache.get(flight_id)
         contents = decision['contents'][0]
-        body = json.loads(contents['body'])
+        try:
+            body = json.loads(contents['body'])
+        except ValueError:
+            _queue_deactivation_request(
+                flight_id=flight_id,
+                invalid_attr='body',
+            )
+            return None
         link_fullname = body['link']
         target = body['target']
         priority = None
@@ -1191,8 +1224,14 @@ def adzerk_request(
         )
 
         if not campaign_fullname:
-            link = Link._by_fullname(link_fullname, data=True, stale=True)
-
+            try:
+                link = Link._by_fullname(link_fullname, stale=True)
+            except NotFound:
+                _queue_deactivation_request(
+                    flight_id=flight_id,
+                    invalid_attr='link',
+                )
+                return None
             if promote.is_external(link):
                 campaign_fullname = promote.EXTERNAL_CAMPAIGN
             else:
