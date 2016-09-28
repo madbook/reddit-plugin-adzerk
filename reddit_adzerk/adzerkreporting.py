@@ -189,7 +189,7 @@ def _get_date(report_fragment):
 def _get_fullname(cls, report_fragment):
     fullname = report_fragment.get("Title", "")
 
-    if not fullname.startswith(cls._fullname_prefix):
+    if not fullname or not fullname.startswith(cls._fullname_prefix):
         return None
     else:
         return fullname
