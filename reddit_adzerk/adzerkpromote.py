@@ -944,7 +944,6 @@ AdzerkResponse = namedtuple(
         'click_url',
         'upvote_pixel',
         'downvote_pixel',
-        'click_query_data',
     ],
 )
 
@@ -971,32 +970,6 @@ def _queue_deactivation_request(flight_id, invalid_attr=None):
 class BlankCreativeResponse(object):
     def __init__(self, impression_pixel, click_pixel):
         self.body = "<div data-blank=true><a href=\"%s\"><img src=\"%s\" height=0 width=0/></a></div>" % (click_pixel, impression_pixel)  # noqa
-
-
-def get_pixel_data(url, data_type="impression"):
-    b64_str = UrlParser(url).query_dict.get("e", "")
-    try:
-        # fix padding and string encode
-        b64_str = str(b64_str + ("=" * (len(b64_str) % 4)))
-        return json.loads(base64.urlsafe_b64decode(b64_str), strict=False)
-    except UnicodeDecodeError:
-        g.log.info("unable to decode %s data: %s", data_type, b64_str)
-        return None
-    except (TypeError, ValueError):
-        return None
-
-
-def get_priority(priority_id):
-    if priority_id is not None:
-        try:
-            priority_id = int(priority_id)
-        except ValueError:
-            return None
-
-        for priority, pid in g.az_selfserve_priorities.iteritems():
-            if priority_id == pid:
-                return priority
-    return None
 
 
 def adzerk_request(
@@ -1138,8 +1111,24 @@ def adzerk_request(
         rate_type_id = pricing.get("rateType")
         rate_type = RATE_TYPE_NAMES.get(rate_type_id, None)
         impression_url = decision.get("impressionUrl")
+        impression_b64_data = UrlParser(impression_url).query_dict.get("e", "")
         impression_id, matched_keywords = None, []
-        impression_data = get_pixel_data(impression_url)
+
+        try:
+            # fix padding and string encode
+            impression_b64_data = str(
+                impression_b64_data +
+                ("=" * (len(impression_b64_data) % 4))
+            )
+            impression_data = json.loads(
+                base64.urlsafe_b64decode(impression_b64_data),
+                strict=False,
+            )
+        except UnicodeDecodeError:
+            g.log.info("unable to decode impression data: %s", impression_b64_data)
+            impression_data = None
+        except TypeError, ValueError:
+            impression_data = None
 
         if impression_data is not None:
             impression_id = impression_data.get("di")
@@ -1199,7 +1188,16 @@ def adzerk_request(
         ecpm = body.get('ecpm', None)
         moat_query = body.get('moatQuery', None)
 
-        priority = get_priority(priority_id)
+        if priority_id is not None:
+            try:
+                priority_id = int(priority_id)
+            except ValueError:
+                pass
+
+            for k, v in g.az_selfserve_priorities.iteritems():
+                if priority_id == v:
+                    priority = k
+
         g.ad_events.ad_response(
             keywords=keywords,
             properties=instrumented_properties,
@@ -1244,26 +1242,6 @@ def adzerk_request(
                 deactivate_orphaned_flight(flight_id)
                 continue
 
-        click_query_data = {
-            "keywords": keywords,
-            "properties": instrumented_properties,
-            "platform": platform,
-            "placement_name": placement_name,
-            "placement_type": placement_type,
-            "adserver_ad_id": ad_id,
-            "adserver_campaign_id": campaign_id,
-            "adserver_creative_id": creative_id,
-            "adserver_flight_id": flight_id,
-            "impression_id": impression_id,
-            "matched_keywords": matched_keywords,
-            "rate_type": rate_type,
-            "clearing_price": revenue,
-            "subreddit": c.site.name,
-            "link_fullname": link_fullname,
-            "campaign_fullname": campaign_fullname,
-            "priority": priority,
-            "ecpm": ecpm,
-        }
         res.append(AdzerkResponse(
             link=link_fullname,
             campaign=campaign_fullname,
@@ -1275,7 +1253,6 @@ def adzerk_request(
             click_url=click_url,
             upvote_pixel=upvote_pixel,
             downvote_pixel=downvote_pixel,
-            click_query_data=click_query_data,
         ))
     return res
 
@@ -1422,12 +1399,7 @@ class AdzerkApiController(api.ApiController):
                                   num=1,
                                   skip=True)
         listing = LinkListing(builder, nextprev=False).listing()
-        promote.add_trackers(
-            listing.things,
-            c.site,
-            adserver_click_urls=adserver_click_urls,
-            click_query_data={r.campaign: r.click_query_data for r in response},
-        )
+        promote.add_trackers(listing.things, c.site, adserver_click_urls=adserver_click_urls)
         promote.update_served(listing.things)
         if listing.things:
             g.stats.simple_event('adzerk.request.valid_promo')
