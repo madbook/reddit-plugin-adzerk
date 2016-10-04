@@ -1039,6 +1039,7 @@ def adzerk_request(
     instrumented_properties = dict(
         age_hours=properties.get("age_hours", None),
         percentage=properties.get("percentage", None),
+        adblock=properties.get("adblock", None),
     )
     g.ad_events.ad_request(
         keywords=keywords,

@@ -141,6 +141,7 @@
     var instrumentedProperties = {
       age_hours: properties.age_hours,
       percentage: properties.percentage,
+      adblock: properties.adblock,
     };
 
     var requestPayload = {
