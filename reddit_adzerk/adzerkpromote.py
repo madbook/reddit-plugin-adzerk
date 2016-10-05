@@ -968,8 +968,19 @@ def _queue_deactivation_request(flight_id, invalid_attr=None):
 
 
 class BlankCreativeResponse(object):
-    def __init__(self, impression_pixel, click_pixel):
-        self.body = "<div data-blank=true><a href=\"%s\"><img src=\"%s\" height=0 width=0/></a></div>" % (click_pixel, impression_pixel)  # noqa
+    def __init__(self, impression_pixel, click_pixel, platform="desktop"):
+        if platform == "desktop":
+            self.body = "<div data-blank=true><a href=\"%s\"><img src=\"%s\" height=0 width=0/></a></div>" % (click_pixel, impression_pixel)  # noqa
+        else:
+            body = {
+                'data': {
+                    'adserver_imp_pixel': impression_pixel,
+                    'is_blank_ad': True,
+                    'href_url': click_pixel,
+                },
+                'kind': 't3'
+            }
+            self.body = body
 
 
 def adzerk_request(
@@ -1160,9 +1171,9 @@ def adzerk_request(
                 request=request,
                 context=c,
             )
-
             return BlankCreativeResponse(impression_pixel=imp_pixel,
-                                         click_pixel=click_url)
+                                         click_pixel=click_url,
+                                         platform=platform)
 
         events_by_id = {event["id"]: event["url"] for event in decision["events"]}
         upvote_pixel = events_by_id[EVENT_TYPE_UPVOTE]
