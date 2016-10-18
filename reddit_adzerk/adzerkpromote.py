@@ -974,6 +974,7 @@ class BlankCreativeResponse(object):
         else:
             body = {
                 'data': {
+                    'id': 'blank',
                     'adserver_imp_pixel': impression_pixel,
                     'is_blank_ad': True,
                     'href_url': click_pixel,
