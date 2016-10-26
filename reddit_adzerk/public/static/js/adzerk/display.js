@@ -134,151 +134,175 @@
       top: 5,
     };
   }
+  // BEGIN AMZNADS INTEGRATION 
+  window.amznads = window.amznads || {};
+  window.amznads.asyncParams = {
+    id: '3379',
+    callbackFn: function() {
+      window.loadAdAfterA9Bids();
+    },
+    timeout: 2e3
+  };
+  (function() {
+      var a, s = document.getElementsByTagName("script")[0];
+      a = document.createElement("script");
+      a.type = "text/javascript";
+      a.async = true;
+      a.src = "//c.amazon-adsystem.com/aax2/amzn_ads.js";
+      s.parentNode.insertBefore(a, s);
+  })();
+  window.loadAdAfterA9Bids = function () {
+    ados.run.push(function() {
+      // set amazon targeting to properties object
+      try {    
+        // set amazon targeting to properties object
+        properties.amznslots = window.amznads.getTokens();
+      } catch (e) { /*ignore*/ }
+      // END AMZNADS INTEGRATION 
+      ados.isAsync = true;
+      var placement = null;
+      var instrumentedProperties = {
+        age_hours: properties.age_hours,
+        percentage: properties.percentage,
+        adblock: properties.adblock,
+      };
 
-  ados.run.push(function() {
-    ados.isAsync = true;
-    var placement = null;
-    var instrumentedProperties = {
-      age_hours: properties.age_hours,
-      percentage: properties.percentage,
-      adblock: properties.adblock,
-    };
+      var requestPayload = {
+        keywords: config.keywords.map(lower).sort(asc),
+        placements: [],
+        properties: instrumentedProperties,
+      };
 
-    var requestPayload = {
-      keywords: config.keywords.map(lower).sort(asc),
-      placements: [],
-      properties: instrumentedProperties,
-    };
+      if (config.placements) {
+        var placements = config.placements.split(',');
 
-    if (config.placements) {
-      var placements = config.placements.split(',');
+        for (var i = 0; i < placements.length; i++) {
+          var kvp = placements[i].split(':');
+          var type = kvp[0];
+          var creative = kvp[1];
 
-      for (var i = 0; i < placements.length; i++) {
-        var kvp = placements[i].split(':');
-        var type = kvp[0];
-        var creative = kvp[1];
+          placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
+          placement.setFlightCreativeId(creative);
+          placement.setProperties(encodeProperties(properties));
 
-        placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
-        placement.setFlightCreativeId(creative);
-        placement.setProperties(encodeProperties(properties));
-
-        requestPayload.placements.push({
-          name: 'sidebar_' + type,
-          types: [
-            PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
-          ],
-        })
-      }
-    } else {
-      for (var type in PLACEMENT_TYPES) {
-        var placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
-        if(properties.double_sidebar && type === 'top'){
-          if (ZONES['above_the_fold']) {
-            placement.setZone(ZONES['above_the_fold']);
-          }
-          properties.frame_id = 'ad_main_top';
-        } else {
-          if (ZONES['below_the_fold']) {
-            placement.setZone(ZONES['below_the_fold']);
-          }
-          properties.frame_id = 'ad_main';
+          requestPayload.placements.push({
+            name: 'sidebar_' + type,
+            types: [
+              PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
+            ],
+          })
         }
-        placement.setProperties(encodeProperties(properties));
+      } else {
+        for (var type in PLACEMENT_TYPES) {
+          var placement = ados_add_placement(NETWORK, SITE, type, PLACEMENT_TYPES[type]);
+          if(properties.double_sidebar && type === 'top'){
+            if (ZONES['above_the_fold']) {
+              placement.setZone(ZONES['above_the_fold']);
+            }
+            properties.frame_id = 'ad_main_top';
+          } else {
+            if (ZONES['below_the_fold']) {
+              placement.setZone(ZONES['below_the_fold']);
+            }
+            properties.frame_id = 'ad_main';
+          }
+          placement.setProperties(encodeProperties(properties));
 
-        requestPayload.placements.push({
-          name: 'sidebar_' + type,
-          types: [
-            PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
-          ],
-        })
-      }
-    }
-    
-    ados_setWriteResults(true);
-
-    if (config.keywords) {
-      ados_setKeywords(config.keywords);
-    }
-
-    r.frames.postMessage(global.parent, 'request.adzerk', requestPayload);
-
-    ados_load();
-
-    var load = setInterval(function() {
-      if (global.ados_results) {
-        clearInterval(load);
-
-        // Load top ad if exists
-        if (global.ados_results.top && global.postMessage) {
-          global.parent.postMessage('ados.createAdFrame:top', config.origin);
+          requestPayload.placements.push({
+            name: 'sidebar_' + type,
+            types: [
+              PLACEMENT_TYPES_FRIENDLY_NAMES[PLACEMENT_TYPES[type]],
+            ],
+          })
         }
+      }
+      
+      ados_setWriteResults(true);
 
-        for (var key in global.ados_ads) {
-          if (!global.ados_ads.hasOwnProperty(key)) {
-            continue;
+      if (config.keywords) {
+        ados_setKeywords(config.keywords);
+      }
+
+      r.frames.postMessage(global.parent, 'request.adzerk', requestPayload);
+
+      ados_load();
+
+      var load = setInterval(function() {
+        if (global.ados_results) {
+          clearInterval(load);
+
+          // Load top ad if exists
+          if (global.ados_results.top && global.postMessage) {
+            global.parent.postMessage('ados.createAdFrame:top', config.origin);
           }
 
-          var adResult = global.ados_ads[key];
-          var impressionMatcher = global.ados_results[key].match(new RegExp(
-            '.*https?:\/\/' +
-            ados.domain +
-            '\/e.gif\?e=([^&]+).*'
-          ));
-          var responsePayload = {
-            keywords: config.keywords.map(lower).sort(asc),
-            placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[adResult.creative.adType],
-            placement_name: 'sidebar_' + key,
-            adserver_campaign_id: adResult.flight.campaign.id,
-            adserver_flight_id: adResult.flight.id,
-            adserver_creative_id: adResult.creative.id,
-            adserver_ad_id: adResult.id,
-            priority: getPriorityName(adResult.flight.priorityId),
-            rate_type: RATE_TYPE_FRIENDLY_NAMES[adResult.flight.rateType],
-            ecpm: adResult.ecpm,
-            companions: (adResult.companions || []).map(function(c) {
-              return {
-                adserver_ad_id: c.id,
-                placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[c.adType],
+          for (var key in global.ados_ads) {
+            if (!global.ados_ads.hasOwnProperty(key)) {
+              continue;
+            }
+
+            var adResult = global.ados_ads[key];
+            var impressionMatcher = global.ados_results[key].match(new RegExp(
+              '.*https?:\/\/' +
+              ados.domain +
+              '\/e.gif\?e=([^&]+).*'
+            ));
+            var responsePayload = {
+              keywords: config.keywords.map(lower).sort(asc),
+              placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[adResult.creative.adType],
+              placement_name: 'sidebar_' + key,
+              adserver_campaign_id: adResult.flight.campaign.id,
+              adserver_flight_id: adResult.flight.id,
+              adserver_creative_id: adResult.creative.id,
+              adserver_ad_id: adResult.id,
+              priority: getPriorityName(adResult.flight.priorityId),
+              rate_type: RATE_TYPE_FRIENDLY_NAMES[adResult.flight.rateType],
+              ecpm: adResult.ecpm,
+              companions: (adResult.companions || []).map(function(c) {
+                return {
+                  adserver_ad_id: c.id,
+                  placement_type: PLACEMENT_TYPES_FRIENDLY_NAMES[c.adType],
+                }
+              }),
+              properties: instrumentedProperties,
+            };
+
+            if (impressionMatcher) {
+              var impressionb64data = impressionMatcher[1];
+
+              // this is url safe base64, need to fix the padding and replace escape characters
+              impressionb64data = impressionb64data + Array((impressionb64data.length % 4) + 1).join('=')
+              impressionb64data = impressionb64data
+                                    .replace(/\-/g, '+')
+                                    .replace(/_/g, '\/');
+
+              try {
+                var impressionData = JSON.parse(global.atob(impressionb64data));
+
+                responsePayload.matched_keywords = impressionData.mk.map(lower).sort(asc);
+                responsePayload.interana_excluded = responsePayload.interana_excluded || {};
+                responsePayload.interana_excluded.impression_id = impressionData.di;
+              } catch (e) {
+                // pass
               }
-            }),
-            properties: instrumentedProperties,
-          };
+            }
 
-          if (impressionMatcher) {
-            var impressionb64data = impressionMatcher[1];
+            r.frames.postMessage(global.parent, 'response.adzerk', responsePayload);
+          }
 
-            // this is url safe base64, need to fix the padding and replace escape characters
-            impressionb64data = impressionb64data + Array((impressionb64data.length % 4) + 1).join('=')
-            impressionb64data = impressionb64data
-                                  .replace(/\-/g, '+')
-                                  .replace(/_/g, '\/');
-
-            try {
-              var impressionData = JSON.parse(global.atob(impressionb64data));
-
-              responsePayload.matched_keywords = impressionData.mk.map(lower).sort(asc);
-              responsePayload.interana_excluded = responsePayload.interana_excluded || {};
-              responsePayload.interana_excluded.impression_id = impressionData.di;
-            } catch (e) {
-              // pass
+          // Load companion
+          if (global.ados_results.sponsorship) {
+            if (global.postMessage) {
+              global.parent.postMessage('ados.createAdFrame:sponsorship', config.origin);
+            } else {
+              iframe = document.createElement('iframe');
+              iframe.src = '/static/createadframe.html';
+              iframe.style.display = 'none';
+              document.documentElement.appendChild(iframe);
             }
           }
-
-          r.frames.postMessage(global.parent, 'response.adzerk', responsePayload);
         }
-
-        // Load companion
-        if (global.ados_results.sponsorship) {
-          if (global.postMessage) {
-            global.parent.postMessage('ados.createAdFrame:sponsorship', config.origin);
-          } else {
-            iframe = document.createElement('iframe');
-            iframe.src = '/static/createadframe.html';
-            iframe.style.display = 'none';
-            document.documentElement.appendChild(iframe);
-          }
-        }
-      }
-    }, 50);
-  });
+      }, 50);
+    });
+  }
 })(this);
