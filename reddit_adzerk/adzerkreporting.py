@@ -433,13 +433,14 @@ def _process_daily_link_reports(links, report_id, queued_date):
                 continue
 
             campaign = campaigns_by_fullname.get(campaign_fullname)
-            link = links_by_id[campaign.link_id]
 
             if not campaign:
                 flight_id = _get_flight_id(detail)
                 g.log.warning("no campaign for flight (%s/%s)" %
                     (campaign_fullname, flight_id))
                 continue
+
+            link = links_by_id[campaign.link_id]
 
             impressions, clicks, spent = _get_usage(detail)
 
