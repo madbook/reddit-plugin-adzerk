@@ -12,7 +12,7 @@ from r2.models import (
 )
 
 is_multi_rx = re.compile(r"\A/?(user|r)/[^\/]+/m/(?P<name>.*?)/?\Z")
-is_adhoc_multi_rx = re.compile(r"\A\/r\/((?:[0-z]+\+)+(?:[0-z])+)\Z")
+is_adhoc_multi_rx = re.compile(r"\A\/r\/((?:[0-z]+\+)+(?:[0-z])+)\/?\Z")
 
 class VSite(Validator):
     def __init__(self, param, required=True, *args, **kwargs):
