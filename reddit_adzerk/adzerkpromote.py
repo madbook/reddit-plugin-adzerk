@@ -28,6 +28,7 @@ from r2.lib import (
 from r2.lib.base import abort
 from r2.lib.csrf import csrf_exempt
 from r2.lib.db.sorts import epoch_seconds
+from r2.lib.db.thing import NotFound
 from r2.lib.errors import (
     errors,
     reddit_http_error,
