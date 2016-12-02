@@ -134,31 +134,15 @@
       top: 5,
     };
   }
-  // BEGIN AMZNADS INTEGRATION 
-  window.amznads = window.amznads || {};
-  window.amznads.asyncParams = {
-    id: '3379',
-    callbackFn: function() {
-      window.loadAdAfterA9Bids();
-    },
-    timeout: 2e3
-  };
-  (function() {
-      var a, s = document.getElementsByTagName("script")[0];
-      a = document.createElement("script");
-      a.type = "text/javascript";
-      a.async = true;
-      a.src = "//c.amazon-adsystem.com/aax2/amzn_ads.js";
-      s.parentNode.insertBefore(a, s);
-  })();
-  window.loadAdAfterA9Bids = function () {
+
+  var loadAd = function () {
     ados.run.push(function() {
       // set amazon targeting to properties object
-      try {    
+      try {
         // set amazon targeting to properties object
         properties.amznslots = window.amznads.getTokens();
       } catch (e) { /*ignore*/ }
-      // END AMZNADS INTEGRATION 
+
       ados.isAsync = true;
       var placement = null;
       var instrumentedProperties = {
@@ -304,5 +288,24 @@
         }
       }, 50);
     });
+  }
+
+  if (!window.DO_NOT_TRACK) {
+    window.amznads = window.amznads || {};
+    window.amznads.asyncParams = {
+      id: '3379',
+      callbackFn: loadAd,
+      timeout: 2e3
+    };
+    (function() {
+        var a, s = document.getElementsByTagName("script")[0];
+        a = document.createElement("script");
+        a.type = "text/javascript";
+        a.async = true;
+        a.src = "//c.amazon-adsystem.com/aax2/amzn_ads.js";
+        s.parentNode.insertBefore(a, s);
+    })();
+  } else {
+    loadAd();
   }
 })(this);

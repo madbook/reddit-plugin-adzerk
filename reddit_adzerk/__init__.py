@@ -70,6 +70,7 @@ class Adzerk(Plugin):
         'display': Module('display.js',
             'lib/json2.js',
             'custom-event.js',
+            'do-not-track.js',
             'frames.js',
             'adzerk/base64.js',
             'adzerk/display.js',
