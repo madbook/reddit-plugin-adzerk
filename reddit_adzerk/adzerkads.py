@@ -68,7 +68,8 @@ class Ads(BaseAds):
                 data["properties"]["percentage"] = percentage
         self.ad_url = g.adzerk_url.format(data=json.dumps(data))
         self.frame_id = frame_id
-        self.frame_class = "sponsor-300-250" if feature.is_enabled('banner_rename') else "ad300x250"  # noqa
+        # Named "sponsor-300-250" to avoid AdBlock's easylist
+        self.frame_class = "sponsor-300-250"
 
 
 class BaseAdFrame(Templated):
