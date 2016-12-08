@@ -303,6 +303,7 @@
         a.type = "text/javascript";
         a.async = true;
         a.src = "//c.amazon-adsystem.com/aax2/amzn_ads.js";
+        a.onerror = loadAd;
         s.parentNode.insertBefore(a, s);
     })();
   } else {
