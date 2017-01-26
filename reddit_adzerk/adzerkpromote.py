@@ -1271,59 +1271,6 @@ def adzerk_request(
     return res
 
 
-def properties_from_context(context, site, exclude=None):
-    properties = dict()
-    age = None
-
-    properties["has_used_mobile_app"] = context.user.has_used_mobile_app
-
-    if context.user_is_loggedin:
-        age = context.user._age
-    elif context.loid:
-        try:
-            loid_created = context.loid.created
-            if not isinstance(loid_created, datetime.datetime):
-                loid_created = datetime.datetime.strptime(
-                    context.loid.created,
-                    "%Y-%m-%dT%H:%M:%S.%fZ"
-                )
-            loid_created = loid_created.replace(tzinfo=g.tz)
-            now = datetime.datetime.now(g.tz)
-            age = now - loid_created
-        except ValueError as e:
-            g.log.info("unable to parse `%s`: %s",
-                LOID_CREATED_COOKIE, e.message)
-
-    if age is not None:
-        properties["age_hours"] = int(age.total_seconds() / (60 * 60))
-
-    if isinstance(site, Subreddit) and not context.default_sr:
-        properties["subreddit"] = site.name
-
-    if site and site.whitelist_status is not None:
-        properties["whitelist_status"] = \
-            site.whitelist_status
-    elif isinstance(site, FakeSubreddit):
-        # hack to detect user pages
-        if request.environ["pylons.routes_dict"]["controller"] == "user":
-            properties["whitelist_status"] = "promo_ads"
-        else:
-            properties["whitelist_status"] = "all_ads"
-
-    if exclude is not None:
-        for key in exclude:
-            if key in properties:
-                del properties[key]
-
-    if getattr(request, "fullurl", ""):
-        properties["full_url"] = request.fullurl
-
-    # used to target a percentage of inventory.
-    properties["percentage"] = random.randrange(0, 100)
-
-    return properties
-
-
 @add_controller
 class AdzerkApiController(api.ApiController):
     @csrf_exempt
@@ -1381,7 +1328,14 @@ class AdzerkApiController(api.ApiController):
         else:
             return
 
-        properties = properties_from_context(c, site)
+        properties = promote.properties_from_context(
+            context=c,
+            keywords=keywords,
+            placement="sponsored_headline",
+            displayed_things=displayed_list,
+            exclude=(None if c.user_is_loggedin else ["age_hours"]),
+        )
+
         properties['user_day'] = user_day
         properties['user_hour'] = user_hour
 

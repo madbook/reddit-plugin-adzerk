@@ -54,7 +54,6 @@ class Adzerk(Plugin):
         ],
 
         ConfigValue.int: [
-            'adx_passback_id',
             'adzerk_reporting_link_group_size',
             'adzerk_reporting_campaign_group_size',
             'adzerk_reporting_timeout',
@@ -87,9 +86,6 @@ class Adzerk(Plugin):
 
     def add_routes(self, mc):
         mc('/api/request_promo/', controller='adzerkapi', action='request_promo')
-        mc('/ads/display/300x250/', controller='adserving', action='ad_300_250')
-        mc('/ads/display/300x250-companion/', controller='adserving', action='ad_300_250_companion')
-        mc('/ads/adx-passback', controller='adx', action='passback')
 
     def declare_queues(self, queues):
         from r2.config.queues import MessageQueue
@@ -99,18 +95,11 @@ class Adzerk(Plugin):
         })
 
     def load_controllers(self):
-        # replace the standard Ads view with an Adzerk specific one.
-        import r2.lib.pages.pages
-        from adzerkads import Ads as AdzerkAds
         from lib.events import AdEventQueue
-
-        r2.lib.pages.pages.Ads = AdzerkAds
 
         g.ad_events = AdEventQueue()
 
         # replace standard adserver with Adzerk.
         from adzerkpromote import AdzerkApiController
         from adzerkpromote import hooks as adzerkpromote_hooks
-        from adzerkads import AdServingController
-        from adzerkads import AdXController
         adzerkpromote_hooks.register_all()
