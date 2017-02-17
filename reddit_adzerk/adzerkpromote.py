@@ -1300,6 +1300,12 @@ def properties_from_context(context, site, exclude=None):
         if site.whitelist_status is not None:
             properties["whitelist_status"] = \
                 site.whitelist_status        
+        elif isinstance(site, FakeSubreddit):
+            # hack to detect user pages
+            if request.environ["pylons.routes_dict"]["controller"] == "user":
+                properties["whitelist_status"] = "promo_ads"
+            else:
+                properties["whitelist_status"] = "all_ads"
 
     if exclude is not None:
         for key in exclude:
