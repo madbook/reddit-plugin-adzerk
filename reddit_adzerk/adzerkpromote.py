@@ -1275,6 +1275,8 @@ def properties_from_context(context, site, exclude=None):
     properties = dict()
     age = None
 
+    properties["has_used_mobile_app"] = context.user.has_used_mobile_app
+
     if context.user_is_loggedin:
         age = context.user._age
     elif context.loid:
