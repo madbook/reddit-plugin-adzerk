@@ -1298,7 +1298,7 @@ def properties_from_context(context, site, exclude=None):
     if isinstance(site, Subreddit) and not context.default_sr:
         properties["subreddit"] = site.name
 
-    if site.whitelist_status is not None:
+    if site and site.whitelist_status is not None:
         properties["whitelist_status"] = \
             site.whitelist_status
     elif isinstance(site, FakeSubreddit):
