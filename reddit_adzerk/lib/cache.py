@@ -1,6 +1,5 @@
 from pylons import app_globals as g
 
-from r2.lib.cache import MemcachedError
 from r2.models import PromoCampaign
 
 
@@ -12,10 +11,7 @@ class PromoCampaignByFlightIdCache():
     @classmethod
     def add(cls, campaign):
         key = cls._cache_key(campaign.external_flight_id)
-        try:
-            g.gencache.set(key, campaign._fullname, time=60*60*24)
-        except MemcachedError:
-            pass
+        g.gencache.set(key, campaign._fullname, time=60*60*24, noreply=True)
 
     @classmethod
     def get(cls, flight_id):
